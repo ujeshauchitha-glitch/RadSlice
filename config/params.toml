@@ -1,0 +1,70 @@
+# Every device or fault parameter in RadSlice lives in this file.
+#
+# Tiers:
+#   A  published measurement; `source` must name it (paper, table/figure).
+#   B  calibrated model; `source` must name what it was calibrated against.
+#   C  hypothetical. The default. A simulation using a tier-C value is a
+#      what-if, never a measurement.
+#
+# Nothing below is tier A or B. No value has been checked against the primary
+# publication yet.
+
+[meta]
+schema = 1
+
+# --- Yield ---------------------------------------------------------------
+
+[yield.p_slice_good]
+value = 0.71
+tier = "C"
+unit = "probability"
+note = """Probability that one 8-bit register slice is defect-free. Taken from
+unverified secondary reports of the Fudan MoS2 RISC-V chip (8-bit register
+yield about 71%). Must be checked against the primary paper before it can be
+promoted to tier A."""
+
+[yield.slice_width_bits]
+value = 8
+tier = "C"
+unit = "bits"
+note = "Granularity of a physical register slice (a byte slice). A modelling choice."
+
+# --- Register file geometry ----------------------------------------------
+
+[regfile.num_regs]
+value = 32
+tier = "C"
+unit = "registers"
+note = """Architectural count. x0 is hardwired to zero in the golden model, so a
+physical file needs only 31 storage words; the yield tables use 32 x 8 = 256
+slices as stated in the project brief. This overstates storage slightly."""
+
+[regfile.width_bits]
+value = 64
+tier = "C"
+unit = "bits"
+note = "RV64."
+
+[regfile.spare_slices]
+value = 0
+tier = "C"
+unit = "slices"
+note = "Shared spare pool size. Swept by the yield model; 0 is the baseline."
+
+# --- ALU -----------------------------------------------------------------
+
+[alu.slice_width_bits]
+value = 16
+tier = "C"
+unit = "bits"
+note = "K. Swept over 8, 16, 32. Each ALU op takes 64/K beats."
+
+# --- Transient faults (used from M4) -------------------------------------
+
+[fault.seu_per_bit_per_cycle]
+value = 1.0e-9
+tier = "C"
+unit = "1/(bit*cycle)"
+note = """Placeholder so that injection code has something to sweep. NOT a
+measurement of MoS2 or of any environment. Results must be reported as a
+function of this rate, not at this value."""
