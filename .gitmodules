@@ -1,0 +1,3 @@
+[submodule "extern/riscv-emu"]
+	path = extern/riscv-emu
+	url = https://github.com/ujeshauchitha-glitch/riscv-emu.git
