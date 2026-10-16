@@ -36,13 +36,34 @@ u8 SlicedRegFile::read_physical(unsigned p) {
     return v;
 }
 
-u64 SlicedRegFile::read(u32 index) {
-    ++stats_.reads;
+u64 SlicedRegFile::assemble(u32 index) {
     u64 v = 0;
     for (unsigned s = 0; s < kSlicesPerWord; ++s)
         v |= static_cast<u64>(read_physical(remap_[index * kSlicesPerWord + s])) << (8 * s);
+    return v;
+}
+
+u64 SlicedRegFile::read(u32 index) {
+    ++stats_.reads;
+    const u64 v = assemble(index);
     if (parity64(v) != parity_[index]) ++stats_.parity_errors;
     return v;
+}
+
+u64 SlicedRegFile::read_raw(u32 index, bool& parity_ok) {
+    ++stats_.reads;
+    const u64 v = assemble(index);
+    parity_ok   = parity64(v) == parity_[index];
+    return v;
+}
+
+u64 SlicedRegFile::peek(u32 index) { return assemble(index); }
+
+bool SlicedRegFile::parity_ok(u32 index) { return parity64(assemble(index)) == parity_[index]; }
+
+void SlicedRegFile::flip_bit(u32 index, unsigned bit) {
+    const unsigned slice = (bit / 8) % kSlicesPerWord;
+    phys_[remap_[index * kSlicesPerWord + slice]] ^= static_cast<u8>(1u << (bit % 8));
 }
 
 void SlicedRegFile::write(u32 index, u64 value) {

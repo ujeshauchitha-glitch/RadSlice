@@ -58,8 +58,20 @@ public:
     u8             read_physical(unsigned p);
     void           write_physical(unsigned p, u8 value) { phys_.at(p) = value; }
 
+    // Transient faults (M4). An upset flips one stored bit of a word, found through
+    // the remap, or its parity bit. read_raw returns the word exactly as stored and
+    // says whether its parity still matches; it counts as a read but does not touch
+    // the parity-error counter, so a protection wrapper can decide what to do.
+    // peek is read_raw without any side effect on the statistics.
+    void flip_bit(u32 index, unsigned bit);
+    void flip_parity(u32 index) { parity_.at(index) ^= 1; }
+    u64  read_raw(u32 index, bool& parity_ok);
+    u64  peek(u32 index);
+    bool parity_ok(u32 index);
+
 private:
     static u8 parity64(u64 v);
+    u64       assemble(u32 index);
 
     std::vector<u8>       phys_;     // physical slices: primaries, then spares
     std::vector<SliceDefect> defects_;
