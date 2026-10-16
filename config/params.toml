@@ -139,3 +139,58 @@ tier = "C"
 unit = "model"
 note = """The remap table, its multiplexers and the self-test logic are assumed
 fault-free and free. Every yield figure is therefore an upper bound."""
+
+# --- Transient-fault campaigns (used from M4) ----------------------------
+# Nothing below is a measurement of MoS2 or of any radiation environment. The rates are
+# swept, and every result is reported as a function of them.
+
+[fault.rf_upset_sweep]
+value = "1e-9, 3e-9, 1e-8"
+tier = "C"
+unit = "1/(bit*cycle)"
+note = """Register-file upset rates swept in M4 (per exposed stored bit, per model cycle).
+Chosen so the unprotected core sees roughly 0.3 to 4 upsets per workload run; chosen
+for statistical usefulness, not because any environment produces them."""
+
+[fault.alu_upset_sweep]
+value = "5e-7, 2e-6, 8e-6"
+tier = "C"
+unit = "1/(output bit*beat)"
+note = """ALU upset rates swept in M4: each slice-unit output bit (K data bits and the
+carry) is flipped with this probability per beat, at most one flip per operation."""
+
+[fault.model]
+value = "independent single-bit flips, Poisson in time"
+tier = "C"
+unit = "model"
+note = """Register file: one Poisson process over every exposed stored bit (data bits of
+x1..x31 in every copy, and the parity bit where the scheme has one). ALU: independent
+per slice-unit call. No multi-bit upsets, no correlation between copies, no upsets in
+memory, CSRs, the control FSM, or in the vote/compare/parity logic."""
+
+[protection.schemes]
+value = "rf: none | parity | parity-dup | tmr;  alu: none | dwc | tmr;  scrub period"
+tier = "C"
+unit = "scheme"
+note = """Parity is detect-only (fail-stop). Parity-dup repairs from the clean copy. TMR is
+a bitwise majority. DWC runs an ALU op twice and a third time on mismatch; ALU TMR runs
+it three times. The vote, compare and parity logic is fault-free and takes no cycles."""
+
+[protection.scrub_period]
+value = 32
+tier = "C"
+unit = "instructions per scrubbed word"
+note = "One register word is scrubbed every 32 retired instructions, round-robin; a scrub read costs 1 beat."
+
+[protection.control_fsm]
+value = "triplicated with a voter, not fault-injected"
+tier = "C"
+unit = "model"
+note = """The control FSM is modelled as triplicated and voted but is not injected, as
+scoped for v0. Its area and any voter delay are not counted anywhere."""
+
+[run.hang_budget]
+value = "3 x golden instructions + 1000"
+tier = "C"
+unit = "instructions"
+note = "A run that has not finished within this many instructions is a hang."
