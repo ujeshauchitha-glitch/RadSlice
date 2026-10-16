@@ -1,0 +1,251 @@
+#include <cstdlib>
+#include <string>
+
+#include "radslice/experiment.hpp"
+#include "test_util.hpp"
+
+// ---------------------------------------------------------------------------
+// The fault-injection harness: golden outputs, zero-fault equivalence, and
+// deterministic fault scenarios whose classification can be predicted.
+//
+// Needs the workload ELFs: run scripts/build-workloads.sh first (needs a RISC-V gcc).
+// ---------------------------------------------------------------------------
+
+using namespace radslice;
+
+#ifndef RADSLICE_WORKLOAD_DIR
+#define RADSLICE_WORKLOAD_DIR "build/workloads"
+#endif
+
+namespace {
+
+const char* kNames[] = {"coremark_like", "chacha20", "irq_loop"};
+
+std::string elf(const std::string& n) { return std::string(RADSLICE_WORKLOAD_DIR) + "/" + n + ".elf"; }
+
+struct Loaded {
+    Workload w;
+    Golden   g;
+    explicit Loaded(const std::string& n) : w(elf(n)), g(w.ok() ? w.run_golden() : Golden{}) {}
+};
+
+RunResult go(const Loaded& L, Protection p, FaultRates r = {}, ChipSpec c = {}, ForcedFault f = {},
+             u64 seed = 1) {
+    Rng rng(seed);
+    return L.w.run(L.g, p, r, c, f, rng);
+}
+
+Protection P(RfProtection rf, AluProtection alu = AluProtection::None, unsigned scrub = 0) {
+    Protection p; p.rf = rf; p.alu = alu; p.scrub_period = scrub; return p;
+}
+
+ForcedFault flip_sp(u64 at, unsigned copy = 0) {
+    ForcedFault f; f.active = true; f.at_instret = at; f.copy = copy; f.word = 2; f.bit = 30;
+    return f;
+}
+
+void test_missing_workload_is_reported() {
+    Workload w("no/such/file.elf");
+    CHECK(!w.ok() && !w.error().empty());
+}
+
+void test_golden_runs_and_known_outputs() {
+    for (const char* n : kNames) {
+        Loaded L(n);
+        CHECK_MSG(L.w.ok(), std::string("cannot load ") + elf(n) + " (run scripts/build-workloads.sh)");
+        if (!L.w.ok()) continue;
+        CHECK_MSG(L.g.ok, std::string(n) + ": " + L.g.error);
+        CHECK(L.g.instret > 10000 && L.g.instret < 100000);
+        CHECK(L.g.trace.size() == L.g.instret);
+    }
+    {   // ChaCha20: RFC 8439 section 2.3.2 block, computed independently in Python.
+        Loaded L("chacha20");
+        const u64 block0[8] = {0x15593bd1e4e7f110ull, 0xc47120a31fdd0f50ull, 0x0368c033c7f4d1c7ull,
+                               0x4e6cd4c39aaa2204ull, 0x09aa9f07466482d2ull, 0xa2028bd905d7c214ull,
+                               0xb94e16ded19c12b5ull, 0x4e3c50a2e883d0cbull};
+        const u64 fold[8]   = {0xe50610604ca1957dull, 0x59efd5b5eac1f68eull, 0x9d7e436b8275f788ull,
+                               0xcbc7df7c140dc97full, 0xa7008ed63a251733ull, 0x32f64cf5247ad0ccull,
+                               0x2ae8717226bbe2feull, 0x9073de4c99eda31full};
+        for (int i = 0; i < 8; ++i) {
+            CHECK_MSG(L.g.result[8 + i] == block0[i], "chacha20 block 0 word pair " + std::to_string(i));
+            CHECK_MSG(L.g.result[i] == fold[i], "chacha20 fold word pair " + std::to_string(i));
+        }
+        CHECK(L.g.result[16] == 0x421b6499ull);
+    }
+    {   // The interrupt workload really took its 60 interrupts.
+        Loaded L("irq_loop");
+        CHECK(L.g.result[0] == 60);
+    }
+}
+
+void test_zero_faults_every_configuration_is_exact() {
+    const Protection configs[] = {
+        P(RfProtection::None), P(RfProtection::Parity), P(RfProtection::ParityDup),
+        P(RfProtection::Tmr), P(RfProtection::Tmr, AluProtection::Dwc, 64),
+        P(RfProtection::ParityDup, AluProtection::Tmr, 16)};
+    for (const char* n : kNames) {
+        Loaded L(n);
+        if (!L.g.ok) continue;
+        const RunResult base = go(L, P(RfProtection::None));
+        for (const Protection& p : configs) {
+            const RunResult r = go(L, p);
+            CHECK_MSG(r.outcome == Outcome::Correct, std::string(n) + " " + to_string(p.rf) + "/" + to_string(p.alu));
+            CHECK(r.instret == L.g.instret && r.result == L.g.result && r.first_divergence == -1);
+            CHECK(r.rf_upsets == 0 && r.alu_upsets == 0);
+            CHECK(r.model_cycles >= base.model_cycles);    // protection never makes it cheaper
+        }
+        // ALU re-execution multiplies the beats exactly.
+        const RunResult dwc = go(L, P(RfProtection::None, AluProtection::Dwc));
+        const RunResult tmr = go(L, P(RfProtection::None, AluProtection::Tmr));
+        CHECK(dwc.alu_beats == 2 * base.alu_beats && tmr.alu_beats == 3 * base.alu_beats);
+    }
+}
+
+void test_forced_upset_classification() {
+    // Flip bit 30 of sp (x2), live in every workload: the next stack access leaves DRAM.
+    for (const char* n : kNames) {
+        Loaded L(n);
+        if (!L.g.ok) continue;
+        const u64 at = 500;
+        const RunResult none = go(L, P(RfProtection::None), {}, {}, flip_sp(at));
+        CHECK_MSG(none.outcome == Outcome::HangCrash, std::string(n) + " unprotected: " + to_string(none.outcome));
+        CHECK(none.first_divergence >= 0);
+
+        const RunResult par = go(L, P(RfProtection::Parity), {}, {}, flip_sp(at));
+        CHECK_MSG(par.outcome == Outcome::DetectedUnrecovered, std::string(n) + " parity: " + to_string(par.outcome));
+
+        for (unsigned copy : {0u, 1u}) {
+            const RunResult dup = go(L, P(RfProtection::ParityDup), {}, {}, flip_sp(at, copy));
+            CHECK_MSG(dup.outcome == Outcome::DetectedRecovered, std::string(n) + " dup: " + to_string(dup.outcome));
+            CHECK(dup.result == L.g.result && dup.first_divergence == -1);
+        }
+        for (unsigned copy : {0u, 1u, 2u}) {
+            const RunResult tmr = go(L, P(RfProtection::Tmr), {}, {}, flip_sp(at, copy));
+            CHECK_MSG(tmr.outcome == Outcome::DetectedRecovered, std::string(n) + " tmr: " + to_string(tmr.outcome));
+            CHECK(tmr.result == L.g.result && tmr.first_divergence == -1);
+        }
+    }
+}
+
+void test_alu_upsets_are_masked_by_reexecution() {
+    Loaded L("chacha20");
+    if (!L.g.ok) return;
+    FaultRates r; r.alu_per_bit_per_beat = 2e-5;
+    int none_ok = 0, dwc_ok = 0, tmr_ok = 0, upsets_seen = 0;
+    const int N = 40;
+    for (int i = 0; i < N; ++i) {
+        const RunResult a = go(L, P(RfProtection::None), r, {}, {}, 100 + i);
+        const RunResult b = go(L, P(RfProtection::None, AluProtection::Dwc), r, {}, {}, 100 + i);
+        const RunResult c = go(L, P(RfProtection::None, AluProtection::Tmr), r, {}, {}, 100 + i);
+        none_ok += (a.outcome == Outcome::Correct);
+        dwc_ok  += (b.outcome == Outcome::DetectedRecovered || b.outcome == Outcome::Correct);
+        tmr_ok  += (c.outcome == Outcome::DetectedRecovered || c.outcome == Outcome::Correct);
+        upsets_seen += (a.alu_upsets > 0);
+    }
+    CHECK(upsets_seen > N / 2);          // the rate really does upset most unprotected runs
+    CHECK(none_ok < N / 4);              // ... and most of those go wrong
+    CHECK(dwc_ok >= N - 3 && tmr_ok >= N - 3);
+}
+
+void test_run_is_deterministic() {
+    Loaded L("coremark_like");
+    if (!L.g.ok) return;
+    FaultRates r{1e-9, 1e-6};
+    const RunResult a = go(L, P(RfProtection::Tmr, AluProtection::Dwc, 32), r, {}, {}, 42);
+    const RunResult b = go(L, P(RfProtection::Tmr, AluProtection::Dwc, 32), r, {}, {}, 42);
+    CHECK(a.outcome == b.outcome && a.instret == b.instret && a.rf_upsets == b.rf_upsets &&
+          a.alu_upsets == b.alu_upsets && a.model_cycles == b.model_cycles && a.result == b.result);
+}
+
+void test_scrubbing_costs_cycles() {
+    Loaded L("chacha20");
+    if (!L.g.ok) return;
+    const RunResult off = go(L, P(RfProtection::Tmr, AluProtection::None, 0));
+    const RunResult on  = go(L, P(RfProtection::Tmr, AluProtection::None, 50));
+    CHECK(on.model_cycles > off.model_cycles);
+    CHECK(on.model_cycles - off.model_cycles <= L.g.instret / 50 + 1);
+}
+
+void test_boot_failure_with_permanent_defects() {
+    Loaded L("chacha20");
+    if (!L.g.ok) return;
+    ChipSpec none_spare; none_spare.defects = true; none_spare.rf_spares = 0; none_spare.alu_spares = 0;
+    int boot = 0;
+    for (int i = 0; i < 10; ++i)
+        boot += go(L, P(RfProtection::None), {}, none_spare, {}, 10 + i).outcome == Outcome::BootFailure;
+    CHECK(boot == 10);                    // 256 slices at p = 0.71 with no spares never repairs
+
+    ChipSpec plenty; plenty.defects = true; plenty.rf_spares = 160; plenty.alu_spares = 24;
+    int ok = 0;
+    for (int i = 0; i < 10; ++i) {
+        const RunResult r = go(L, P(RfProtection::None), {}, plenty, {}, 20 + i);
+        ok += (r.outcome == Outcome::Correct && r.result == L.g.result);
+    }
+    CHECK(ok >= 9);                       // repaired chips run the workload exactly
+
+    // TMR needs three repaired register files, so it fails to boot more often than one copy.
+    ChipSpec tight; tight.defects = true; tight.rf_spares = 120; tight.alu_spares = 24;
+    int boot1 = 0, boot3 = 0;
+    for (int i = 0; i < 60; ++i) {
+        boot1 += go(L, P(RfProtection::None), {}, tight, {}, 300 + i).outcome == Outcome::BootFailure;
+        boot3 += go(L, P(RfProtection::Tmr), {}, tight, {}, 300 + i).outcome == Outcome::BootFailure;
+    }
+    CHECK(boot3 > boot1);
+}
+
+// Every run, whatever the faults, must satisfy the definitions of its outcome class.
+void test_outcome_invariants_over_many_runs() {
+    const Protection configs[] = {P(RfProtection::None), P(RfProtection::Parity),
+                                  P(RfProtection::ParityDup, AluProtection::Dwc, 32),
+                                  P(RfProtection::Tmr, AluProtection::Tmr, 32)};
+    int sdc_unprotected = 0, seen[kNumOutcomes] = {};
+    for (const char* n : kNames) {
+        Loaded L(n);
+        if (!L.g.ok) continue;
+        FaultRates r{2e-9, 2e-6};
+        for (const Protection& p : configs)
+            for (int i = 0; i < 40; ++i) {
+                const RunResult x = go(L, p, r, {}, {}, 1000 + i);
+                ++seen[static_cast<int>(x.outcome)];
+                const u64 corr = x.rf_corrected + x.alu_corrected;
+                switch (x.outcome) {
+                    case Outcome::Correct:
+                        CHECK(x.result == L.g.result && corr == 0);
+                        break;
+                    case Outcome::DetectedRecovered:
+                        CHECK(x.result == L.g.result && corr > 0);
+                        break;
+                    case Outcome::Sdc:
+                        CHECK(x.result != L.g.result);
+                        CHECK(x.first_divergence >= 0);        // lockstep saw it too
+                        break;
+                    case Outcome::HangCrash:
+                        CHECK(x.hang || x.crash);              // one of the two sub-causes is recorded
+                        break;
+                    default: break;
+                }
+                if (p.rf == RfProtection::None && p.alu == AluProtection::None && x.outcome == Outcome::Sdc)
+                    ++sdc_unprotected;
+            }
+    }
+    CHECK(sdc_unprotected > 5);                                // SDC does occur without protection
+    CHECK(seen[static_cast<int>(Outcome::Correct)] > 0);
+    CHECK(seen[static_cast<int>(Outcome::DetectedRecovered)] > 0);
+    CHECK(seen[static_cast<int>(Outcome::DetectedUnrecovered)] > 0);
+    CHECK(seen[static_cast<int>(Outcome::HangCrash)] > 0);
+}
+
+}  // namespace
+
+int main() {
+    test_missing_workload_is_reported();
+    test_golden_runs_and_known_outputs();
+    test_zero_faults_every_configuration_is_exact();
+    test_forced_upset_classification();
+    test_alu_upsets_are_masked_by_reexecution();
+    test_run_is_deterministic();
+    test_scrubbing_costs_cycles();
+    test_boot_failure_with_permanent_defects();
+    test_outcome_invariants_over_many_runs();
+    return tu::summary("experiment");
+}
