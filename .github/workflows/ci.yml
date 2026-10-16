@@ -19,8 +19,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-unknown-elf
       - run: cmake -S . -B build
       - run: cmake --build build -j
+      - run: bash scripts/build-workloads.sh
       - run: ctest --test-dir build -R radslice_ --output-on-failure
 
   hw-riscv-tests:
@@ -46,4 +48,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: cmake -S . -B build && cmake --build build -j --target radslice_yield
-      - run: python scripts/m3_yield.py --trials 5000
+      - run: python scripts/m3_yield.py --trials 5000 --out build/m3-ci

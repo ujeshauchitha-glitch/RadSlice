@@ -43,6 +43,8 @@ def z_and_ok(hits, n, exact):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--trials", type=int, default=20000)
+    ap.add_argument("--out", default=str(ROOT / "results"),
+                    help="directory for the CSV/SVG outputs (default: results/, the committed copies)")
     args = ap.parse_args()
     if EMU is None:
         sys.exit("build radslice_yield first (cmake --build build)")
@@ -79,8 +81,8 @@ def main():
             record("alu", k, RF_FIXED_FOR_ALU, s, int(r["alu_ok"]), a_exact)
             record("chip", k, RF_FIXED_FOR_ALU, s, int(r["both_ok"]), rf_exact * a_exact)
 
-    outdir = ROOT / "results"
-    outdir.mkdir(exist_ok=True)
+    outdir = Path(args.out)
+    outdir.mkdir(parents=True, exist_ok=True)
     with open(outdir / "m3_yield.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
