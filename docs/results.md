@@ -133,20 +133,20 @@ each have their own spares, and chip yield is the product.
 
 ### Simulated yield agrees with the closed form
 20,000 chips per point, 65 points (11 register-file spare counts, 3 ALU widths with
-their spare sweeps, and the combined chip yield): **largest |z| = 2.20, none outside 4
-standard errors.** The simulated mean number of defective register slices is 74.22
+their spare sweeps, and the combined chip yield): **largest |z| = 2.59, none outside 4
+standard errors.** The simulated mean number of defective register slices is 74.20
 against an expected 74.24 (= 256 x 0.29). Selected points:
 
 | point | simulated | closed form |
 |---|---:|---:|
-| register file, 96 spares | 0.2597 | 0.2576 |
-| register file, 112 spares | 0.7500 | 0.7481 |
-| register file, 128 spares | 0.9726 | 0.9718 |
-| register file, 144 spares | 0.9989 | 0.9990 |
-| ALU K = 8, 6 spares | 0.9186 | 0.9204 |
-| ALU K = 16, 8 spares | 0.9322 | 0.9309 |
-| ALU K = 32, 4 spares | 0.4684 | 0.4758 |
-| chip: 128 rf spares + ALU K = 8 with 10 spares | 0.9671 | 0.9674 |
+| register file, 96 spares | 0.2609 | 0.2576 |
+| register file, 112 spares | 0.7492 | 0.7481 |
+| register file, 128 spares | 0.9711 | 0.9718 |
+| register file, 144 spares | 0.9990 | 0.9990 |
+| ALU K = 8, 6 spares | 0.9216 | 0.9204 |
+| ALU K = 16, 8 spares | 0.9315 | 0.9309 |
+| ALU K = 32, 4 spares | 0.4728 | 0.4758 |
+| chip: 128 rf spares + ALU K = 8 with 10 spares | 0.9654 | 0.9674 |
 
 ### Granularity: finer slices need far less spare area
 Closed form (confirmed by the simulation above), ALU spare area needed for a target yield:
@@ -192,18 +192,18 @@ given stuck bit). Simulation matches on 20 points, all within 4 standard errors
 
 | q | rounds | chips passing the test | of those, a defective slice still in use | of those, failing a functional check |
 |---:|---:|---:|---:|---:|
-| 0.1 | 1 | 99.8% | 100% | 100% |
-| 0.1 | 4 | 92.8% | 100% | 99.8% |
-| 0.1 | 16 | 82.9% | 97.5% | 41.0% |
-| 0.1 | 64 | 80.4% | 0% | 0% |
+| 0.1 | 1 | 99.9% | 100% | 100% |
+| 0.1 | 4 | 93.1% | 100% | 99.9% |
+| 0.1 | 16 | 83.3% | 97.0% | 40.3% |
+| 0.1 | 64 | 80.8% | 0% | 0% |
 | 0.5 | 1 | 88.0% | 100% | 100% |
-| 0.5 | 4 | 82.1% | 33.3% | 21.2% |
-| 0.5 | 16 | 81.1% | 0% | 0% |
+| 0.5 | 4 | 81.5% | 32.7% | 20.1% |
+| 0.5 | 16 | 80.9% | 0% | 0% |
 
-The apparent "yield" of a weak-defect population falls from 99.8% to 80.4% as the test
+The apparent "yield" of a weak-defect population falls from 99.9% to 80.8% as the test
 gets longer: the first number was never real. The functional check (3 register passes
 and 300 random ALU ops) also misses some defective chips that the exact defect map shows
-(33.3% latent, 21.2% failing), so passing a short functional test is weaker evidence than
+(32.7% latent, 20.1% failing), so passing a short functional test is weaker evidence than
 a clean self-test.
 
 ### What was not shown
@@ -231,6 +231,17 @@ a clean self-test.
   the output rather than assuming it.
 - The functional check turned out to be a weaker detector than the defect map, which is
   why the latent-defect count is reported separately.
+
+- **A seeding flaw, found during M4 and fixed.** Per-row and per-run random seeds were
+  built as `seed + golden_ratio * index`. The generator (splitmix64) advances its state by
+  exactly that constant per draw, so neighbouring seeds gave the same stream shifted by one
+  draw: the 65 yield points and the chip rows were not independent samples. Each point's own
+  estimate was still unbiased, but the independence that the "no point outside 4 standard
+  errors" claim assumes was not there. Seeds are now hashed (`Rng::stream`), a regression
+  test shows the old construction overlapped in all 200 neighbouring pairs and the new one
+  in none, and every M3 number in this section was regenerated. The conclusions did not
+  change (largest |z| went from 2.20 to 2.59, the weak-defect and spare-area results are the
+  same to within noise); the quoted figures moved by up to about one percentage point.
 
 ### What would falsify these conclusions
 - A simulated yield more than 4 standard errors from the closed form, or a repaired
