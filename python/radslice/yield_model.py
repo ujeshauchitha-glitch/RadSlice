@@ -87,6 +87,37 @@ def format_table(rows) -> str:
     return "\n".join(out)
 
 
+# ---- ALU (M3) ---------------------------------------------------------------
+# An ALU of 64 bits is `64 // k` slice units of k bits. Same defect density per bit
+# as the register file: a k-bit unit is good with probability p8 ** (k / 8). Spares
+# are interchangeable with any unit (ideal crossbar), so yields are upper bounds.
+
+def alu_units(k: int, xlen: int = 64) -> int:
+    return xlen // k
+
+
+def alu_unit_good_prob(p8: float, k: int) -> float:
+    return p8 ** (k / 8)
+
+
+def alu_yield(k: int, spares: int, p8: float, xlen: int = 64) -> float:
+    n = alu_units(k, xlen)
+    return binom_tail(n + spares, n, alu_unit_good_prob(p8, k))
+
+
+def alu_area_ratio(k: int, spares: int, xlen: int = 64) -> float:
+    """Slice-unit area relative to the spare-free ALU (a spare is one unit, k bits)."""
+    n = alu_units(k, xlen)
+    return (n + spares) / n
+
+
+def min_spares_for(k: int, p8: float, target: float, xlen: int = 64) -> int:
+    s = 0
+    while alu_yield(k, s, p8, xlen) < target:
+        s += 1
+    return s
+
+
 if __name__ == "__main__":
     from .params import load_params
 

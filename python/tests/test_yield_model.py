@@ -63,5 +63,29 @@ class Params(unittest.TestCase):
                 lp(f)
 
 
+class AluClosedForm(unittest.TestCase):
+    def test_no_spares_is_p_to_the_eighth_for_every_k(self):
+        # Same defect density per bit: total ALU area is the same for any K.
+        for k in (8, 16, 32):
+            self.assertAlmostEqual(ym.alu_yield(k, 0, P), P**8, places=12)
+
+    def test_unit_counts_and_area(self):
+        self.assertEqual(ym.alu_units(8), 8)
+        self.assertEqual(ym.alu_units(32), 2)
+        self.assertAlmostEqual(ym.alu_area_ratio(8, 4), 1.5)
+        self.assertAlmostEqual(ym.alu_area_ratio(32, 1), 1.5)
+
+    def test_spares_help_and_are_monotone(self):
+        for k in (8, 16, 32):
+            ys = [ym.alu_yield(k, s, P) for s in range(0, 12)]
+            self.assertEqual(ys, sorted(ys))
+            self.assertGreater(ys[-1], ys[0])
+
+    def test_min_spares_reaches_target(self):
+        s = ym.min_spares_for(8, P, 0.99)
+        self.assertGreaterEqual(ym.alu_yield(8, s, P), 0.99)
+        self.assertLess(ym.alu_yield(8, s - 1, P), 0.99)
+
+
 if __name__ == "__main__":
     unittest.main()
