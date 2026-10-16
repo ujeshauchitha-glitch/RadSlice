@@ -50,6 +50,10 @@ public:
 
     u64 exec(AluOp op, u64 a, u64 b) override;
 
+    // What a fault-free slice unit does. The self-test compares physical units
+    // against this.
+    SliceOut ideal_slice(SliceOp op, u64 x, u64 y, u64 aux) const;
+
     unsigned xlen() const { return xlen_; }
     unsigned slice_bits() const { return k_; }
     unsigned num_slices() const { return n_; }

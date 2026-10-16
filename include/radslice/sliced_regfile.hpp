@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "backends.hpp"  // riscv-emu: RegFileBackend, u8/u32/u64
+#include "radslice/defects.hpp"
 
 namespace radslice {
 
@@ -44,14 +45,26 @@ public:
 
     // Access for fault injection and self-test (M3/M4); unused with zero faults.
     unsigned total_slices() const { return static_cast<unsigned>(phys_.size()); }
-    u8&      physical(unsigned p) { return phys_.at(p); }
+    u8&      physical(unsigned p) { return phys_.at(p); }   // raw cell, bypasses defects
     unsigned remap(unsigned logical) const { return remap_.at(logical); }
     void     set_remap(unsigned logical, unsigned physical) { remap_.at(logical) = physical; }
+
+    // Permanent defects (M3). A defective physical slice returns data with a stuck
+    // bit, whatever was written. read_physical/write_physical bypass the remap and
+    // are what the boot self-test uses to examine one slice at a time.
+    void           set_defect(unsigned physical, const SliceDefect& d);
+    const SliceDefect& defect(unsigned physical) const { return defects_.at(physical); }
+    void           seed_defects(u64 seed) { rng_ = Rng(seed); }
+    u8             read_physical(unsigned p);
+    void           write_physical(unsigned p, u8 value) { phys_.at(p) = value; }
 
 private:
     static u8 parity64(u64 v);
 
     std::vector<u8>       phys_;     // physical slices: primaries, then spares
+    std::vector<SliceDefect> defects_;
+    bool                  any_defect_ = false;
+    Rng                   rng_{1};
     std::vector<unsigned> remap_;    // logical slice -> physical slice
     std::array<u8, kWords> parity_{};
     Stats                 stats_;

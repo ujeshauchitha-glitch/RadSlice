@@ -40,6 +40,10 @@ unsigned SlicedAlu::beats_for(AluOp op, unsigned xlen, unsigned slice_bits) {
 }
 
 SliceOut SlicedAlu::slice_unit(unsigned /*slice_index*/, SliceOp op, u64 x, u64 y, u64 aux) {
+    return ideal_slice(op, x, y, aux);
+}
+
+SliceOut SlicedAlu::ideal_slice(SliceOp op, u64 x, u64 y, u64 aux) const {
     switch (op) {
         case SliceOp::Add: {
             const u64 s = x + y + aux;
