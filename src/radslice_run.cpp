@@ -12,6 +12,14 @@
 //   RADSLICE_RF    sliced | plain | none   default sliced
 //   RADSLICE_BASE_CYCLES  cycles per instruction outside the ALU    default 1
 //
+// Permanent defects (M3). Setting RADSLICE_DEFECT_SEED samples a defective chip:
+//   RADSLICE_P            probability an 8-bit slice is good          default 0.71 (tier C)
+//   RADSLICE_RF_SPARES    spare register-file byte slices             default 0
+//   RADSLICE_ALU_SPARES   spare ALU slice units                       default 0
+//   RADSLICE_SELFTEST     1 = run the boot self-test and remap first  default 1
+// With the self-test on, an unrepairable chip stops with "BOOT FAILURE"; with it off
+// the defective chip runs as it is, which is the control showing defects matter.
+//
 // The cycle numbers are MODEL ESTIMATES (see docs/results.md), not measurements.
 
 #include <cstdlib>
@@ -27,6 +35,8 @@
 #include "dram.hpp"
 #include "elf_loader.hpp"
 #include "plic.hpp"
+#include "radslice/chip_sim.hpp"
+#include "radslice/selftest.hpp"
 #include "radslice/sliced_alu.hpp"
 #include "radslice/sliced_regfile.hpp"
 #include "syscon.hpp"
@@ -114,8 +124,49 @@ int main(int argc, char** argv) {
     std::unique_ptr<radslice::SlicedAlu>     salu;
     std::unique_ptr<radslice::SlicedRegFile> srf;
     std::unique_ptr<radslice::PlainRegFile>  prf;
+
+    const std::string defect_seed = env_or("RADSLICE_DEFECT_SEED", "");
+    const bool        defective   = !defect_seed.empty();
+    radslice::ChipConfig chip;
+    chip.p          = std::atof(env_or("RADSLICE_P", "0.71").c_str());
+    chip.k          = k;
+    chip.rf_spares  = static_cast<unsigned>(std::atoi(env_or("RADSLICE_RF_SPARES", "0").c_str()));
+    chip.alu_spares = static_cast<unsigned>(std::atoi(env_or("RADSLICE_ALU_SPARES", "0").c_str()));
+    const bool selftest = env_or("RADSLICE_SELFTEST", "1") != "0";
+    radslice::DefectiveSlicedAlu* dalu = nullptr;
+    radslice::ChipResult          chip_res;
+    radslice::Rng                 chip_rng(std::strtoull(defect_seed.c_str(), nullptr, 0));
+
     try {
-        if (alu_kind == "sliced") {
+        if (defective && (alu_kind != "sliced" || rf_kind != "sliced")) {
+            std::cerr << "error: defects need RADSLICE_ALU=sliced and RADSLICE_RF=sliced\n";
+            return 2;
+        }
+        if (defective) {
+            auto d = std::make_unique<radslice::DefectiveSlicedAlu>(64, k, chip.alu_spares,
+                                                                    chip_rng.next());
+            dalu = d.get();
+            salu = std::move(d);
+            srf  = std::make_unique<radslice::SlicedRegFile>(chip.rf_spares);
+            srf->seed_defects(chip_rng.next());
+            radslice::inject_defects(*srf, *dalu, chip, chip_rng, chip_res);
+            std::cerr << "chip: seed " << defect_seed << ", p=" << chip.p << ", defective rf slices "
+                      << chip_res.rf_defective_total << " (" << chip_res.rf_defective_primary
+                      << " primary), defective alu units " << chip_res.alu_defective_total << "\n";
+            if (selftest) {
+                const auto rr = radslice::regfile_self_test(*srf, 1);
+                const auto ar = radslice::alu_self_test(*dalu, 1);
+                std::cerr << "self-test: rf bad " << rr.bad_primary << " remapped " << rr.remapped
+                          << (rr.ok ? "" : " UNREPAIRABLE") << "; alu bad " << ar.bad_primary
+                          << " remapped " << ar.remapped << (ar.ok ? "" : " UNREPAIRABLE") << "\n";
+                if (!rr.ok || !ar.ok) {
+                    std::cerr << "\nBOOT FAILURE: not enough good slices to repair this chip\n";
+                    return 1;
+                }
+            }
+            cpu.alu_backend = salu.get();
+            cpu.regfile     = srf.get();
+        } else if (alu_kind == "sliced") {
             salu = std::make_unique<radslice::SlicedAlu>(64, k);
             cpu.alu_backend = salu.get();
         } else if (alu_kind != "plain") {
@@ -126,7 +177,9 @@ int main(int argc, char** argv) {
         std::cerr << "error: " << e.what() << "\n";
         return 2;
     }
-    if (rf_kind == "sliced") {
+    if (defective) {
+        // already installed above
+    } else if (rf_kind == "sliced") {
         srf = std::make_unique<radslice::SlicedRegFile>(0);
         cpu.regfile = srf.get();
     } else if (rf_kind == "plain") {
