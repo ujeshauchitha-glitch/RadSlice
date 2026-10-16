@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     unsigned long long ran = 0;
 
     for (unsigned long long i = first; i < first + runs; ++i) {
-        Rng rng(seed + 0x9e3779b97f4a7c15ull * (i + 1));
+        Rng rng = Rng::stream(seed, i);
         const RunResult r = w.run(g, prot, rates, chip, ForcedFault{}, rng);
         ++count[static_cast<int>(r.outcome)];
         hang += r.hang; crash += r.crash;

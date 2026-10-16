@@ -216,9 +216,38 @@ void test_weak_defect_escape_matches_closed_form() {
     }
 }
 
+// Per-run random streams must be unrelated. Seeds of the form seed + index * golden
+// ratio (what this project first used) give the same stream shifted by one draw, which
+// made runs and yield rows correlated.
+bool streams_overlap(Rng a, Rng b, int n) {
+    u64 av[64];
+    for (int i = 0; i < n; ++i) av[i] = a.next();
+    for (int i = 0; i < n; ++i) {
+        const u64 x = b.next();
+        for (int j = 0; j < n; ++j)
+            if (av[j] == x) return true;
+    }
+    return false;
+}
+
+void test_per_run_streams_are_not_shifted_copies() {
+    const u64 gamma = 0x9e3779b97f4a7c15ull;
+    int old_overlaps = 0, new_overlaps = 0;
+    for (u64 i = 0; i < 200; ++i) {
+        old_overlaps += streams_overlap(Rng(1 + gamma * (i + 1)), Rng(1 + gamma * (i + 2)), 64);
+        new_overlaps += streams_overlap(Rng::stream(1, i), Rng::stream(1, i + 1), 64);
+    }
+    CHECK(old_overlaps == 200);   // the old construction: every neighbouring pair overlaps
+    CHECK(new_overlaps == 0);     // the hashed construction: none do
+    // Same index, same seed -> same stream; different seeds -> different streams.
+    CHECK(Rng::stream(5, 3).next() == Rng::stream(5, 3).next());
+    CHECK(Rng::stream(5, 3).next() != Rng::stream(6, 3).next());
+}
+
 }  // namespace
 
 int main() {
+    test_per_run_streams_are_not_shifted_copies();
     test_closed_form_helper();
     test_planted_regfile_defect_is_found_and_remapped();
     test_defective_spare_is_skipped();

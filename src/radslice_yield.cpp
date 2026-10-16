@@ -56,13 +56,13 @@ int main(int argc, char** argv) {
 
     using namespace radslice;
     unsigned long long row = 0;
-    auto row_seed = [&]() { return seed + 0x9e3779b97f4a7c15ull * (++row); };
+    auto row_rng = [&]() { return Rng::stream(seed, row++); };
 
     if (mode == "weak") {
         std::cout << "activation,rounds,trials,detected\n";
         for (double qq : list(q))
             for (double rr : list(rounds)) {
-                Rng rng(row_seed());
+                Rng rng = row_rng();
                 unsigned long long hit = 0;
                 for (unsigned long long t = 0; t < trials; ++t)
                     hit += detect_weak_slice(qq, static_cast<unsigned>(rr), rng) ? 1 : 0;
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
             cfg.alu_spares = static_cast<unsigned>(as);
             cfg.rounds = static_cast<unsigned>(list(rounds).at(0));
             cfg.activation = activation; cfg.verify = verify;
-            Rng rng(row_seed());
+            Rng rng = row_rng();
             unsigned long long rf_ok = 0, alu_ok = 0, both = 0, ver = 0, esc = 0, lat = 0;
             double sum_rf = 0, sum_alu = 0;
             for (unsigned long long t = 0; t < trials; ++t) {

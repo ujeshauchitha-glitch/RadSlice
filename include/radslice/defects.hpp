@@ -20,6 +20,25 @@ public:
     double   uniform() { return static_cast<double>(next() >> 11) * (1.0 / 9007199254740992.0); }
     unsigned below(unsigned n) { return static_cast<unsigned>(next() % n); }
 
+    // The generator for run `index` of a campaign seeded with `seed`.
+    //
+    // Do NOT build per-run seeds as seed + index * constant: splitmix64 advances its
+    // state by a fixed constant per draw, so seeds spaced by that constant (or a
+    // multiple of it) give the same stream shifted by a few draws, and the runs are
+    // then strongly correlated. The seed is hashed instead, so streams are unrelated.
+    static Rng stream(u64 seed, u64 index) {
+        u64 z = seed + 0x9e3779b97f4a7c15ull * (index + 1);
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+        z ^= z >> 31;
+        // A second, differently keyed round, so consecutive indices are not related
+        // through the first mix either.
+        z += 0xd1342543de82ef95ull;
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+        return Rng(z ^ (z >> 31));
+    }
+
 private:
     u64 s_;
 };
