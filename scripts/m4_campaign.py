@@ -93,6 +93,12 @@ def build_cells():
         for c in ("none", "dup", "tmr-rf"):
             cells.append(dict(campaign="defects", workload="coremark_like", config=c,
                               lam_rf=MID_RF, lam_alu=MID_ALU, defects=(0.71, spares, 12)))
+    # Fault-free runs, one per scheme: the model-cycle overhead of the scheme itself.
+    # (The mean cycles of a faulty cell mixes runs that stopped early with runs that
+    # hung, so it is not an overhead and is not reported as one.)
+    for w in WORKLOADS:
+        for c in CONFIGS:
+            cells.append(dict(campaign="overhead", workload=w, config=c, lam_rf=0.0, lam_alu=0.0))
     return cells
 
 
@@ -113,7 +119,13 @@ def main():
     seeds = {i: 1000 + i for i in range(len(cells))}
     print(f"{len(cells)} cells x {runs} runs, {args.jobs} jobs", flush=True)
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
-        rows = list(ex.map(lambda i: run_cell(cells[i], runs, seeds[i]), range(len(cells))))
+        rows = list(ex.map(lambda i: run_cell(cells[i], 1 if cells[i]["campaign"] == "overhead" else runs,
+                                               seeds[i]), range(len(cells))))
+
+    overhead = {}
+    for cell, r in zip(cells, rows):
+        if cell["campaign"] == "overhead":
+            overhead[(cell["workload"], cell["config"])] = float(r["mean_cycles"]) / float(r["baseline_cycles"])
 
     out = []
     warn = 0
@@ -127,7 +139,8 @@ def main():
                    defects=("p=%s,rf_spares=%d,alu_spares=%d" % cell["defects"]) if cell.get("defects") else "",
                    runs=n, hang=int(r["hang"]), crash=int(r["crash"]), diverged=int(r["diverged"]),
                    mean_rf_upsets=float(r["mean_rf_upsets"]), mean_alu_upsets=float(r["mean_alu_upsets"]),
-                   cycle_overhead=(float(r["mean_cycles"]) / base) if base and float(r["mean_cycles"]) else 0.0,
+                   cycle_overhead_fault_free=overhead[(cell["workload"], cell["config"])],
+                   mean_cycles_all_runs_over_baseline=(float(r["mean_cycles"]) / base) if base else 0.0,
                    rf_storage_factor=storage)
         for o in OUTCOMES:
             lo, hi = wilson(counts[o], n)
@@ -175,12 +188,13 @@ def write_summary(rows, path, runs):
 
     def table(title, sel):
         lines.append(f"### {title}\n")
-        lines.append("| workload | scheme | correct | recovered | fail-stop | **SDC** (95% CI) | hang/crash | boot fail | cycles | RF storage |")
+        lines.append("| workload | scheme | correct | recovered | fail-stop | **SDC** (95% CI) | hang/crash | boot fail | cycles (fault-free) | RF storage |")
         lines.append("|---|---|---:|---:|---:|---|---:|---:|---:|---:|")
         for r in sel:
-            lines.append(f"| {r['workload']} | {r['config']} | {pct(r, 'correct')} | {pct(r, 'detected_recovered')} | "
+            scheme = r["config"] + (f" [{r['defects']}]" if r["defects"] else "")
+            lines.append(f"| {r['workload']} | {scheme} | {pct(r, 'correct')} | {pct(r, 'detected_recovered')} | "
                          f"{pct(r, 'detected_unrecovered')} | **{pct(r, 'sdc')}** ({100*r['sdc_lo']:.1f}-{100*r['sdc_hi']:.1f}) | "
-                         f"{pct(r, 'hang_crash')} | {pct(r, 'boot_failure')} | {r['cycle_overhead']:.2f}x | {r['rf_storage_factor']:.2f}x |")
+                         f"{pct(r, 'hang_crash')} | {pct(r, 'boot_failure')} | {r['cycle_overhead_fault_free']:.2f}x | {r['rf_storage_factor']:.2f}x |")
         lines.append("")
 
     table(f"Combined upsets (register file {MID_RF:g} per bit-cycle, ALU {MID_ALU:g} per bit-beat)",
@@ -218,7 +232,7 @@ def write_svg(rows, path):
                 if wpx > 0:
                     g.append(f'<rect x="{x:.1f}" y="{y + 2}" width="{wpx:.1f}" height="{rowh - 4}" fill="{colors[o]}"/>')
                 x += wpx
-            g.append(f'<text x="{left + pw + 8}" y="{y + 14}" font-size="10" fill="#555">SDC {100*r["sdc_frac"]:.1f}%  fail {100*r["visible_failure_frac"]:.0f}%  {r["cycle_overhead"]:.2f}x cyc</text>')
+            g.append(f'<text x="{left + pw + 8}" y="{y + 14}" font-size="10" fill="#555">SDC {100*r["sdc_frac"]:.1f}%  fail {100*r["visible_failure_frac"]:.0f}%  {r["cycle_overhead_fault_free"]:.2f}x cyc</text>')
             y += rowh
         y += 30
     lx = left
