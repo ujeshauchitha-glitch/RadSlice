@@ -4,6 +4,106 @@ Results come from scripts in this repository with fixed seeds. Every number is
 a simulation under tier-C assumptions, not a measurement. Rejected ideas and
 failures are recorded here, not deleted.
 
+## M5: What was shown, what was not, and what would change it
+
+Read this first; the milestone sections below it hold the evidence.
+
+**Status of the evidence.** Everything here is simulation. The register file and ALU are models
+beneath an unmodified golden RV64IMAFDC emulator. All 23 parameters in `config/params.toml` are
+tier C (hypothetical); none has been checked against a primary source, including the one the
+whole project leans on, `p = 0.71`, an unverified secondary figure for the yield of an 8-bit
+register slice. See `docs/assumptions.md` (generated from the parameters). So each conclusion
+below means "in this model, at these parameters", and the last column says what would overturn it.
+No novelty is claimed: spare slices, parity, scrubbing and TMR all exist in silicon. What this
+project contributes is a combined, simulated study of them on a slice-serial RV64 core under a
+2D-style defect model, with the negative and awkward results kept.
+
+### Conclusions
+
+| # | Conclusion | Evidence | Rests on | Would be overturned by |
+|---|---|---|---|---|
+| C1 | Yield collapses with width: a 64-bit register (8 byte slices) with no spares yields 0.71^8 = 0.0646. | M0 closed form; M3 simulation | independent slice defects at p = 0.71 | a primary-source p far from 0.71, or defect clustering |
+| C2 | A shared spare pool beats per-register spares at equal spare count: whole-file yield 0.97 (128 spares, 1.5x slices) against about 0.0001 for 4 private spares per register. | M0, M3 | ideal crossbar; fault-free remap logic | a real crossbar/remap cost or delay that erases the gain; clustered defects exhausting the pool locally |
+| C3 | A bit-sliced RV64I ALU (K = 8, 16, 32) and byte-sliced register file are functionally exact with zero faults. | M2: 119.5M ALU checks against an independent reference (exhaustive at 8 bits, dense at 16 and 64), lockstep on random programs, rv64ui + rv64mi 65/65 at every K; deliberate bugs caught | the reference and the scope (data ops; PC adders, M/A/F/D and CSRs stay plain) | a single operand pair that differs; 64-bit exhaustiveness is not claimed |
+| C4 | Slice-serial execution costs cycles in proportion to slice count: about 4.2x, 2.4x, 1.4x for K = 8, 16, 32 on a compute loop (base cost 1), less as the non-ALU cost grows. | M2 analytical model | four tier-C cost choices (non-ALU cost, one beat per slice op regardless of K, free W-form sign extension, wide enough register port) | a cycle-accurate model showing wider slices are slower per beat, which narrows the gap |
+| C5 | A boot self-test plus remap recovers yield to the closed form: 65 simulated points agree within Monte Carlo error (largest abs z 2.59); repaired chips pass the riscv-tests, unrepaired ones fail them. | M3 | the one-stuck-bit defect model; independence; fault-free test logic | defects the test cannot see (delay, bridging, multi-bit, defects in the remap/test logic) |
+| C6 | Finer ALU slices need far less spare area for the same yield (99% needs about 2.1x, 4x, 12x ALU area at K = 8, 16, 32), but cost more cycles (C4). Neither wins outright. | M3 closed form + simulation; M2 | p^(K/8) scaling of an ALU slice from a register-slice figure; ideal crossbar | logic with a different defect density per bit; a crossbar whose cost grows fast with slice count |
+| C7 | Weak (intermittent) defects escape a short self-test: with q = 0.1, one round passes 99.9% of chips and every one still has a defective slice in use; yield falls to 80.8% only after 64 rounds. | M3 | single-bit weak-defect model | real defects that are either always visible or never |
+| C8 | Parity with a second copy, or TMR, plus ALU re-execution, remove silent corruption and hangs in this model at every rate swept, at a cost in storage (2x, 3x), ALU cycles (1.7x DWC, 2.5x TMR), a fail-stop failure mode, and yield. | M4: 180 cells x 2000 runs, reproduced exactly on re-run | independent single-bit upsets; fault-free vote/compare/parity logic; PC, memory, CSRs and control FSM not injected | multi-bit or clustered upsets; upsets in the protection logic or the unmodelled state; a persistent ALU upset |
+| C9 | Scrubbing helps schemes that can correct and hurts parity-only (it halts the machine on upsets in registers never read again). | M4 | same as C8 | a scrub policy that only acts on registers about to be read |
+| C10 | Protecting only one side barely helps when both are upset, and can raise silent corruption by letting runs survive to be corrupted by the other side. Only register-file TMR + ALU DWC + scrub succeeded in every run. | M4 | same as C8 | rates where one side dominates by orders of magnitude |
+| C11 | Protection lowers manufacturing yield: TMR needs three repaired register files (boot failure 3.5% to 8.8% at 128 spares per copy; 25.9% to 57.9% at 112). | M4 vs M3 closed form | independent defects per copy | defects correlated across copies, or spares shared between copies |
+
+### The research question, answered as far as it can be
+The gap (G6) asked whether a 2D-specific fault model, combined with yield sparing and transient-fault
+handling on a slice-serial RV64 core, changes the outcome mix. **What was answered:** the structure
+of the outcome mix (it depends strongly on protection scheme, workload and rate; C8 to C11), and
+the costs of each scheme. **What was not, and cannot be, answered here:** whether MoS2 differs from
+silicon. That needs primary-source defect and upset data, and this project has none; the only
+2D-specific input is the tier-C yield figure. The hybrid baseline (fault-free silicon register file
+under MoS2 logic) is the ALU-only campaign in M4; it shows ALU upsets alone cause most of the damage
+at the swept rates, but whether those rates are realistic is exactly what is unknown.
+
+### Gaps: where each stands
+| Gap | Status |
+|---|---|
+| G1 yield collapses with width | supported in-model (C1); independence not tested, p unverified |
+| G2 shared pool vs private spares | supported in-model (C2); crossbar cost not modelled |
+| G3 sliced datapath is correct | supported (C3) |
+| G4 cost of slice-serial execution | estimated, model-dependent (C4) |
+| G5 self-test and remap | supported for hard defects (C5); weak defects escape (C7) |
+| G5a granularity and spare area | supported on yield (C6); mux cost unknown |
+| G6 combined yield + radiation on a slice-serial core | structure answered; the 2D-specific part is not answerable without data |
+| G7 fair baseline | the hybrid case was run (the ALU-only campaign), but no head-to-head cost comparison (area, register-file yield) was made, so G7's falsifier (the hybrid wins on every metric) is neither confirmed nor ruled out |
+| G8 protection reduces corruption, at what cost | supported in-model (C8 to C11), with the failure mode and yield cost found |
+
+### Rejected ideas, failures and corrections (collected)
+- Counting W-form sign extension as an extra beat: rejected for lack of a source; kept as a tier-C
+  parameter set to 0 (M2).
+- A test of my own that passed vacuously: lockstep random programs that trapped early and only
+  ran a prefix; fixed and made to fail on early traps (M2).
+- A wrong expectation in my tests (how many 2-spare chips pass), corrected (M3).
+- **A seeding flaw that made per-run random streams shifted copies of each other.** Found because
+  an injector sanity check was off by up to 5 sigma; it had also made the M3 yield points
+  non-independent. Fixed, regression-tested, and M3 regenerated; conclusions unchanged (M3, M4).
+- A parity detection was classified as a crash because of the order of two checks; a crash was not
+  counted as a lockstep divergence; both fixed (M4).
+- A misleading cycles column (mean over runs that stopped at different times) replaced by
+  fault-free overhead (M4).
+- Found, not fixed, out of scope: `riscv_emu --dump` segfaults in the unmodified golden build on
+  this Windows/MinGW setup (M1).
+- Known test gap: a mutant that drops the PC comparison from the lockstep check is not caught; it
+  only changes when the first divergence is reported (M4).
+
+### Limits of the whole study (v0 scope, restated)
+RV64I + Zicsr datapath only, machine-mode workloads only; memory and CSRs assumed protected; the
+control FSM is described as triplicated but never injected; the PC adders, M/A/F/D and CSR
+operations are not sliced; a single hart; independent single-bit faults and independent permanent
+defects; 256 register slices including x0's word; K = 16 in the fault campaigns.
+
+### Open questions, in the order I would pursue them
+1. Check p and the defect/upset behaviour against the primary publication; promote what can be sourced
+   to tier A or B and rerun. Nothing else here improves as much.
+2. Model defect clustering and see how much of C2, C5 and C6 survives.
+3. Put a cost on the spare-routing crossbar and on the vote/compare logic, and redo the K trade-off (C4 vs C6).
+4. Inject the PC, memory, CSRs and the control FSM, and multi-bit upsets.
+5. Replace the analytical cycle model with a cycle-accurate one for at least one K.
+
+### Reproducing everything
+```
+git clone --recurse-submodules https://github.com/ujeshauchitha-glitch/RadSlice.git
+cmake -S . -B build && cmake --build build -j      # C++ tests: ctest --test-dir build -R radslice_
+bash scripts/run-python-tests.sh                   # closed forms, parameters, assumptions register
+bash scripts/build-workloads.sh                    # needs a RISC-V gcc
+bash scripts/run-hw-riscv-tests.sh 16 rv64ui rv64mi   # also K = 8 and 32
+python scripts/m2_cycles.py                        # model-estimate cycle overhead (M2)
+python scripts/m3_yield.py                         # about 25 s: yield vs spares, weak defects
+python scripts/m4_campaign.py                      # roughly 10 to 15 min on 14 cores: 180 cells x 2000 runs
+```
+At the commit this section was written, the six C++ test suites, the sixteen Python tests and rv64ui
++ rv64mi (65/65 at K = 8, 16 and 32) all passed locally on Windows with MinGW. The GitHub Actions
+jobs were added along the way and their results have not been checked from here.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
@@ -32,6 +132,26 @@ overstates the file by one register.
 
 **Would falsify.** A clustered-defect model, or a primary-source `p` far from
 0.71 (see G1, G2).
+
+## M1: hooks in the golden emulator (riscv-emu, branch `radslice-hooks`)
+
+The golden core is unchanged in behaviour. Two optional backends, both null by default, were
+added: `RegFileBackend` (replacing the integer register file behind `read_reg`/`write_reg`) and
+`AluBackend` (one entry point, `exec(op, a, b)`, covering the register-register and immediate
+ALU forms, the comparisons behind branches, and data-address generation for loads, stores and
+JALR). The PC adders, M/A/F/D and CSR operations are not routed through it.
+
+- The brief expected 14 direct `regs[]` uses; there were 3 (two inside the accessors themselves
+  and one in `dump_registers`). The real work was the ALU, which was inlined in about 25 places.
+- Verification: `ctest` 16/16 before and 17/17 after (one new suite checking that every ALU form
+  reaches the backend with the right operation and operands, and that a backend can steer
+  results); the official riscv-tests 125/125 before and 125/125 after (3 rv64si tests do not
+  assemble with this toolchain, and 2 rv64mi tests are excluded by the existing runner; all
+  unchanged).
+- Performance: on a fixed 300M-instruction loop, 12 alternating runs, the modified build took a
+  median 0.976x the baseline's time. The run-to-run spread on this laptop was 2.2x, so this means
+  no slowdown was detected, not that none exists below a few percent.
+- Found, not fixed: `riscv_emu --dump` segfaults in the unmodified `main` build here.
 
 ## M2: sliced ALU and sliced register file, zero faults
 
