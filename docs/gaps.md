@@ -98,6 +98,41 @@ RV64 core, changes the outcome mix.
 baseline with no 2D-specific assumptions, or the tier-C parameters dominate so
 that no conclusion survives varying them.
 
+### M4 refinement of G6: what can and cannot be answered
+M4 has no sourced MoS2 radiation data, so the upset rate is a swept tier-C parameter
+and every result is stated as a function of it. What M4 can answer is *structural*: how
+the outcome mix (correct, detected-and-recovered, detected-but-not-recovered, silent
+data corruption, hang/crash, boot failure) depends on the protection scheme, the
+workload, and the upset rate, and what each scheme costs in model cycles and storage.
+It cannot say whether MoS2 is more or less upset-prone than silicon; that needs
+primary-source numbers.
+
+## G8. Do the protection schemes reduce silent corruption, and at what cost?
+**Claim to test.** Against an unprotected sliced core, (a) register-file parity with
+duplication, (b) register-file triple modular redundancy (TMR), and (c) re-execution
+or TMR of ALU operations each cut silent data corruption and hangs, and background
+scrubbing stops single upsets from accumulating into uncorrectable ones.
+**Answered by.** M4 injection campaigns: the golden core is the oracle, and every
+run ends in exactly one outcome class, with Wilson confidence intervals.
+**Wrong if.**
+- the silent-corruption rate of a protected configuration is not lower than the
+  unprotected one beyond the 95% intervals, at rates where the unprotected core does
+  corrupt;
+- a protection scheme creates a new failure mode that outweighs its benefit (for
+  example parity-only scrubbing halting the machine on an upset in a register that was
+  never going to be read again);
+- the benefit disappears when the upset rate is swept, so it is an artefact of one
+  chosen value.
+**Assumptions (tier C).** Upsets are independent single-bit flips: in the register file
+(stored data and parity bits, every copy) at a rate per bit per model cycle, and in an
+ALU slice-unit output per beat. Memory and CSRs are fault-free. The control FSM is
+triplicated and voted in the model but is not fault-injected, and the vote and
+compare logic is fault-free. Detection and correction are instantaneous and free in
+cycles, except that re-executing ALU operations really costs 2x or 3x the beats.
+**Tradeoffs to report, not hide.** Storage (2x and 3x register copies), ALU beats
+(2x and 3x), the added failure mode of fail-stop, and, once defects are combined, the
+lower manufacturing yield of a design that needs several repaired register files.
+
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with
 MoS2 logic is needed to avoid overstating the benefit.
