@@ -10,7 +10,9 @@ research question is the 2D-specific fault model plus combined yield and
 radiation handling on a slice-serial RV64 core.
 
 - `docs/gaps.md`: what each feature answers, and what would prove it wrong.
-- `docs/results.md`: what was shown, what was not, and what was rejected.
+- `docs/results.md`: what was shown, what was not, and what was rejected. Start with its
+  "M5" section: eleven conclusions, each with what it rests on and what would overturn it.
+- `docs/assumptions.md`: every parameter and its tier, generated from `config/params.toml`.
 - `extern/riscv-emu`: the golden model (submodule). Never modified from here.
 
 Layout: `include/radslice` and `src/` hold the hardware model (sliced ALU, sliced

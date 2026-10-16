@@ -5,6 +5,9 @@ wrong are written here. Nothing in this repository is a measurement. All device
 and fault parameters are tier C (hypothetical) in `config/params.toml` until a
 source is checked.
 
+**Status.** Where each gap ended up after M5 is tabulated in `docs/results.md` (section "M5"),
+and every assumption is listed in `docs/assumptions.md`.
+
 ## G1. Register-file yield collapses with width in 2D-material logic
 **Claim to test.** If slice defects are independent with probability `p`, an
 N-slice register has yield `p^N`, so a wide datapath is infeasible without
