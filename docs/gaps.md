@@ -31,12 +31,25 @@ counterexample suffices.
 **Scope decision.** The PC adders (`pc + imm`, `pc + 4`) stay plain and are not
 sliced; only data-side address generation uses the sliced ALU.
 
+**M2 result (see results.md).** Tested against an independent reference at 8 and 16
+bits (exhaustively over every 8-bit operand pair, densely at 16 bits), and densely at
+64 bits for K = 8/16/32, then in lockstep with the golden core on random programs and
+on rv64ui + rv64mi. "Exhaustive at 64 bits" is not claimed: it is infeasible, so 64-bit
+correctness rests on boundary-value and seeded random coverage plus the structural
+argument that the same slice logic is exhaustively correct at 8 bits.
+**Also wrong if.** A bug exists that only shows at a width or slice count the small-width
+tests do not reach (for example a carry that matters only across three or more slices).
+
 ## G4. Cost of slice-serial execution
 **Claim to test.** K = 8, 16, 32 cost a quantifiable cycle overhead against a
 full 64-bit datapath.
 **Answered by.** M2 analytical beats-per-instruction-class model.
 **Wrong if.** The beat counts disagree with a cycle-accurate RTL model. The
-numbers are model estimates, never measurements.
+numbers are model estimates, never measurements. They depend on four tier-C
+choices in params.toml: the non-ALU cost per instruction, one beat per slice op
+regardless of K, free W-form sign extension, and a register-file port as wide as
+the ALU slice. Keeping the PC adders plain also removes their cost from the sliced
+side. Any of these changing materially changes the overhead.
 
 ## G5. A boot self-test can find and remap defective slices
 **Claim to test.** Self-test plus remap recovers yield to the closed-form

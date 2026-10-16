@@ -20,4 +20,18 @@ jobs:
         with:
           submodules: recursive
       - run: cmake -S . -B build
-      - run: cmake --build build --target riscv_core
+      - run: cmake --build build -j
+      - run: ctest --test-dir build -R radslice_ --output-on-failure
+
+  hw-riscv-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-unknown-elf
+      - run: cmake -S . -B build && cmake --build build -j --target radslice_run
+      - run: |
+          for k in 8 16 32; do
+            bash scripts/run-hw-riscv-tests.sh $k rv64ui rv64mi
+          done

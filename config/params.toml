@@ -68,3 +68,36 @@ unit = "1/(bit*cycle)"
 note = """Placeholder so that injection code has something to sweep. NOT a
 measurement of MoS2 or of any environment. Results must be reported as a
 function of this rate, not at this value."""
+
+# --- Cycle model (used from M2) ------------------------------------------
+# These define the analytical cost model. They are modelling choices, not
+# device properties, and every overhead figure is reported as a function of them.
+
+[cycles.base_per_instruction]
+value = 1
+tier = "C"
+unit = "beats"
+note = """Cost of everything outside the integer ALU: fetch, decode, memory access,
+the plain PC adders, and M/A/F/D. scripts/m2_cycles.py reports 1, 2 and 4. A larger
+value dilutes the ALU overhead, so the overhead at 1 is the pessimistic end."""
+
+[cycles.beats_per_slice_op]
+value = 1
+tier = "C"
+unit = "beats"
+note = "One beat per slice-unit operation, independent of K. A real K-bit adder is slower for larger K; this ignores that."
+
+[cycles.w_form_sign_extension_beats]
+value = 0
+tier = "C"
+unit = "beats"
+note = """Sign-extending a W-form result into the upper slices is done by the
+write-back path and costs no ALU beat. If it costs one, every W op gets +1."""
+
+[cycles.regfile_port_matches_alu_slice]
+value = true
+tier = "C"
+unit = "bool"
+note = """Assumes operand read and result write stream at the ALU's slice width, so
+register-file access is hidden behind the ALU beats. For K = 16 or 32 this needs a
+wider-than-byte read/write port into the byte-slice register file."""
