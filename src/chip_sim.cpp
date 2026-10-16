@@ -35,11 +35,8 @@ bool functionally_correct(SlicedRegFile& rf, DefectiveSlicedAlu& alu, Rng& rng) 
 
 }  // namespace
 
-void inject_defects(SlicedRegFile& rf, DefectiveSlicedAlu& alu, const ChipConfig& cfg, Rng& rng,
-                    ChipResult& res) {
-    const double p_bad_rf  = 1.0 - cfg.p;
-    const double p_bad_alu = 1.0 - std::pow(cfg.p, cfg.k / 8.0);
-
+void inject_regfile_defects(SlicedRegFile& rf, const ChipConfig& cfg, Rng& rng, ChipResult& res) {
+    const double p_bad_rf = 1.0 - cfg.p;
     for (unsigned s = 0; s < rf.total_slices(); ++s) {
         if (rng.uniform() < p_bad_rf) {
             rf.set_defect(s, random_defect(rng, 8, false, cfg.activation));
@@ -47,12 +44,22 @@ void inject_defects(SlicedRegFile& rf, DefectiveSlicedAlu& alu, const ChipConfig
             if (s < SlicedRegFile::kPrimarySlices) ++res.rf_defective_primary;
         }
     }
+}
+
+void inject_alu_defects(DefectiveSlicedAlu& alu, const ChipConfig& cfg, Rng& rng, ChipResult& res) {
+    const double p_bad_alu = 1.0 - std::pow(cfg.p, cfg.k / 8.0);
     for (unsigned u = 0; u < alu.physical_units(); ++u) {
         if (rng.uniform() < p_bad_alu) {
             alu.set_defect(u, random_defect(rng, cfg.k, true, cfg.activation));
             ++res.alu_defective_total;
         }
     }
+}
+
+void inject_defects(SlicedRegFile& rf, DefectiveSlicedAlu& alu, const ChipConfig& cfg, Rng& rng,
+                    ChipResult& res) {
+    inject_regfile_defects(rf, cfg, rng, res);   // same draw order as before: register file first
+    inject_alu_defects(alu, cfg, rng, res);
 }
 
 ChipResult simulate_chip(const ChipConfig& cfg, Rng& rng) {

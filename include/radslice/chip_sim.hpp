@@ -26,6 +26,10 @@ struct ChipResult {
     unsigned alu_defective_total  = 0;
 };
 
+// The two halves of inject_defects, for chips with several register-file copies.
+void inject_regfile_defects(SlicedRegFile& rf, const ChipConfig& cfg, Rng& rng, ChipResult& res);
+void inject_alu_defects(DefectiveSlicedAlu& alu, const ChipConfig& cfg, Rng& rng, ChipResult& res);
+
 // Sample defects into a register file and an ALU already built with their spares.
 // Fills the defect counts of `res`.
 void inject_defects(SlicedRegFile& rf, DefectiveSlicedAlu& alu, const ChipConfig& cfg, Rng& rng,
