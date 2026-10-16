@@ -43,3 +43,14 @@ A defective chip under riscv-tests (`RADSLICE_SELFTEST=0` leaves the defects in,
 RADSLICE_DEFECT_SEED=1 RADSLICE_RF_SPARES=160 RADSLICE_ALU_SPARES=24 \
   bash scripts/run-hw-riscv-tests.sh 16 rv64ui rv64mi
 ```
+
+Fault-injection campaigns (M4; needs a RISC-V gcc for the workloads):
+
+```bash
+bash scripts/build-workloads.sh                  # the three bare-metal workloads
+python scripts/m4_campaign.py --quick --out build/m4-quick   # a few minutes; omit --quick for the full 180 cells
+build/radslice_inject --elf build/workloads/chacha20.elf --rf tmr --alu dwc --scrub 32 \
+  --lambda-rf 3e-9 --lambda-alu 2e-6 --runs 1000 --seed 1
+```
+
+Every upset rate is a tier-C parameter, swept and never quoted as a measurement.
