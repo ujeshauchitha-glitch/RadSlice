@@ -19,7 +19,7 @@ add_subdirectory(extern/riscv-emu EXCLUDE_FROM_ALL)
 # The hardware model: sliced ALU and register file under the golden core.
 add_library(radslice_hw STATIC
   src/sliced_alu.cpp src/sliced_regfile.cpp src/defective_alu.cpp
-  src/selftest.cpp src/chip_sim.cpp)
+  src/selftest.cpp src/chip_sim.cpp src/protected_regfile.cpp)
 target_include_directories(radslice_hw PUBLIC include)
 target_link_libraries(radslice_hw PUBLIC riscv_core)
 target_compile_options(radslice_hw PRIVATE -Wall -Wextra)
@@ -33,7 +33,7 @@ add_executable(radslice_yield src/radslice_yield.cpp)
 target_link_libraries(radslice_yield PRIVATE radslice_hw)
 target_compile_options(radslice_yield PRIVATE -Wall -Wextra)
 
-foreach(t test_sliced_alu test_hw_lockstep test_defects)
+foreach(t test_sliced_alu test_hw_lockstep test_defects test_protected_regfile)
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE radslice_hw)
   target_compile_options(${t} PRIVATE -Wall -Wextra)
