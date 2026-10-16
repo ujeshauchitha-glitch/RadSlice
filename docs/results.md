@@ -175,8 +175,9 @@ K = 8 would pay more for it than the ideal-crossbar assumption admits.
   (4,000 chips, K = 16, 128 + 6 spares).
 
 ### End to end on riscv-tests
-Sampled defective chips (about 80 defective register slices and 2 to 5 defective ALU
-units each, repaired with 160 register and 24 ALU spares) run the whole rv64ui + rv64mi
+Sampled defective chips (73 to 84 defective primary register slices and 1 to 4 defective
+primary ALU units each, all remapped, using 160 register and 24 ALU spares; more defects
+fell on spares) run the whole rv64ui + rv64mi
 suites **65/65 at K = 8, 16 and 32, for seeds 1, 2 and 3 (9 chips).**
 Control: the same chips with the self-test turned off pass **0/65** (seeds 1 and 2,
 K = 16). A defective unrepaired chip does not return wrong answers politely: on
