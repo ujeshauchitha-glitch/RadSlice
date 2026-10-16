@@ -15,7 +15,9 @@ redundancy.
 **Answered by.** M0 closed-form model; M3 Monte Carlo.
 **Wrong if.** Defects are strongly clustered (independence then misstates the
 loss in either direction), or the primary-source `p` differs enough to change
-the conclusion. `p = 0.71` is an unverified secondary figure.
+the conclusion. Update: `p = 0.71` has since been checked against the paper's Supplementary
+Information (an 8-bit MoS2 shift register; the map count gives 73.7%), and the one wafer map
+shows no clustering; see `docs/results.md`. The main text remains unread.
 
 ## G2. Per-register spares versus a shared spare pool
 **Claim to test.** A shared pool beats per-register spares at equal area.
@@ -69,9 +71,11 @@ remap on the real register-file and ALU models, and compares the pass rate with
 - with intermittent ("weak") defects, the observed escape rate differs from the
   closed form (1 - q)^(2R) per defective slice (q: activation probability, R: test
   rounds), or cannot be pushed down by more rounds.
-**Assumptions (all tier C, see params.toml).**
+**Assumptions (mostly tier C, see params.toml).**
 - Slices are defective independently, with probability 1 - p (p = 0.71 for an 8-bit
-  register slice; unverified).
+  register slice; tier B, calibrated to the measured yield of an 8-bit MoS2 shift register
+  in the paper's Supplementary Information; the independence is not contradicted by the one
+  published wafer map).
 - A defective slice has exactly one stuck output bit or a stuck carry. Real defects
   are richer; this is the simplest fault that a test can be wrong about.
 - An ALU slice of K bits has p_K = p^(K/8): the same defect density per bit.

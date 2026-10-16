@@ -9,11 +9,13 @@ failures are recorded here, not deleted.
 Read this first; the milestone sections below it hold the evidence.
 
 **Status of the evidence.** Everything here is simulation. The register file and ALU are models
-beneath an unmodified golden RV64IMAFDC emulator. All 23 parameters in `config/params.toml` are
-tier C (hypothetical); none has been checked against a primary source, including the one the
-whole project leans on, `p = 0.71`, an unverified secondary figure for the yield of an 8-bit
-register slice. See `docs/assumptions.md` (generated from the parameters). So each conclusion
-below means "in this model, at these parameters", and the last column says what would overturn it.
+beneath an unmodified golden RV64IMAFDC emulator. Of the 26 parameters in `config/params.toml`, 22
+are tier C (hypothetical). The four sourced ones (2 tier A, 2 tier B) are all about the yield of an
+8-bit register slice, `p = 0.71`: it was an unverified secondary figure when M0 to M5 were done, and
+was afterwards checked against the paper's Supplementary Information (section "Checking p against
+the primary source" below); the paper's main text was not readable. See `docs/assumptions.md`
+(generated from the parameters). So each conclusion below means "in this model, at these
+parameters", and the last column says what would overturn it.
 No novelty is claimed: spare slices, parity, scrubbing and TMR all exist in silicon. What this
 project contributes is a combined, simulated study of them on a slice-serial RV64 core under a
 2D-style defect model, with the negative and awkward results kept.
@@ -22,7 +24,7 @@ project contributes is a combined, simulated study of them on a slice-serial RV6
 
 | # | Conclusion | Evidence | Rests on | Would be overturned by |
 |---|---|---|---|---|
-| C1 | Yield collapses with width: a 64-bit register (8 byte slices) with no spares yields 0.71^8 = 0.0646. | M0 closed form; M3 simulation | independent slice defects at p = 0.71 | a primary-source p far from 0.71, or defect clustering |
+| C1 | Yield collapses with width: a 64-bit register (8 byte slices) with no spares yields 0.71^8 = 0.0646. | M0 closed form; M3 simulation | independent slice defects at p = 0.71 (now calibrated to the paper's SI; shift register, not a register-file slice) | clustering at register-file scale (none seen in the one 8-bit-register wafer map), or a register-file slice yielding unlike the measured shift register |
 | C2 | A shared spare pool beats per-register spares at equal spare count: whole-file yield 0.97 (128 spares, 1.5x slices) against about 0.0001 for 4 private spares per register. | M0, M3 | ideal crossbar; fault-free remap logic | a real crossbar/remap cost or delay that erases the gain; clustered defects exhausting the pool locally |
 | C3 | A bit-sliced RV64I ALU (K = 8, 16, 32) and byte-sliced register file are functionally exact with zero faults. | M2: 119.5M ALU checks against an independent reference (exhaustive at 8 bits, dense at 16 and 64), lockstep on random programs, rv64ui + rv64mi 65/65 at every K; deliberate bugs caught | the reference and the scope (data ops; PC adders, M/A/F/D and CSRs stay plain) | a single operand pair that differs; 64-bit exhaustiveness is not claimed |
 | C4 | Slice-serial execution costs cycles in proportion to slice count: about 4.2x, 2.4x, 1.4x for K = 8, 16, 32 on a compute loop (base cost 1), less as the non-ALU cost grows. | M2 analytical model | four tier-C cost choices (non-ALU cost, one beat per slice op regardless of K, free W-form sign extension, wide enough register port) | a cycle-accurate model showing wider slices are slower per beat, which narrows the gap |
@@ -47,7 +49,7 @@ at the swept rates, but whether those rates are realistic is exactly what is unk
 ### Gaps: where each stands
 | Gap | Status |
 |---|---|
-| G1 yield collapses with width | supported in-model (C1); independence not tested, p unverified |
+| G1 yield collapses with width | supported (C1): p confirmed for an 8-bit shift register in the paper's SI; independence not contradicted by the one wafer map; the 64-bit extrapolation and the main text remain unchecked |
 | G2 shared pool vs private spares | supported in-model (C2); crossbar cost not modelled |
 | G3 sliced datapath is correct | supported (C3) |
 | G4 cost of slice-serial execution | estimated, model-dependent (C4) |
@@ -82,8 +84,9 @@ operations are not sliced; a single hart; independent single-bit faults and inde
 defects; 256 register slices including x0's word; K = 16 in the fault campaigns.
 
 ### Open questions, in the order I would pursue them
-1. Check p and the defect/upset behaviour against the primary publication; promote what can be sourced
-   to tier A or B and rerun. Nothing else here improves as much.
+1. Read the paper's main text (paywalled) for any whole-processor yield claim, the definition of a
+   working register, and yields of other circuits; promote what can be sourced. The register yield
+   itself has been checked against the Supplementary Information (see the section on checking p).
 2. Model defect clustering and see how much of C2, C5 and C6 survives.
 3. Put a cost on the spare-routing crossbar and on the vote/compare logic, and redo the K trade-off (C4 vs C6).
 4. Inject the PC, memory, CSRs and the control FSM, and multi-bit upsets.
@@ -104,10 +107,76 @@ At the commit this section was written, the six C++ test suites, the sixteen Pyt
 + rv64mi (65/65 at K = 8, 16 and 32) all passed locally on Windows with MinGW. The GitHub Actions
 jobs were added along the way and their results have not been checked from here.
 
+## Checking p against the primary source (done after M5)
+
+**What was checked, and how much.** The paper is Ao, Zhou et al., "A RISC-V 32-bit microprocessor
+based on two-dimensional semiconductors", *Nature* 640, 654-661 (2025), doi:10.1038/s41586-025-08759-9.
+Its main text is behind a paywall and **was not read**. I read its Supplementary Information (17 pages,
+Supplementary Figs. 1-12 and Tables 1-2): the text was extracted and searched for yield, defect,
+redundancy and fault, and the one figure that matters was analysed pixel by pixel. The only yield
+material in the SI is Supplementary Fig. 7. Anything the main text says about yield is unchecked.
+
+### What the Supplementary Information says
+- **Caption of Supplementary Fig. 7.** A 4-inch wafer carries 28 matrices of "64-bit" MoS2
+  registers, each matrix being 8 parallel 8-bit shift registers: 224 8-bit shift registers in all.
+  Each has 144 transistors. Its yield "can reach 71% on the wafer".
+- **The wafer map in panel (c)** shows one green (works) or red (error) stripe per register.
+  Counting it, two independent ways for the failures, gives **59 failed of 224, so 165/224 = 73.7%
+  work**, with every one of the 28 matrices segmenting into exactly 8 registers. That is not the
+  caption's 71%. The SI does not say which definition the caption uses ("can reach" may mean a best
+  case), so both numbers are kept. The transcribed map is `results/si_fig7_wafer_map.txt`;
+  `python -m radslice.wafer_map` reproduces everything below from it.
+- **Implied per-transistor yield** if transistors fail independently: 0.9976 (from 71%) to 0.9979
+  (from the map).
+
+### What this does to the project's premises
+| Premise from the brief | What the source shows |
+|---|---|
+| 8-bit register yield about 71% | **Confirmed**, for an 8-bit MoS2 *shift register* of 144 transistors, as the caption's wording (and 73.7% from the map). |
+| 64-bit register yield about 7% | **Not stated in the SI.** The 64-bit "registers" are matrices of 8 parallel 8-bit registers; **2 of the 28 (7.1%) have no failed register**, and independent failures at the measured rate would give 2.4. That is very probably where the 7% comes from, but it is my inference. The project's own 0.71^8 = 0.0646 is an extrapolation, not a measurement. |
+| Defects fall independently on 8-bit slices | **Not contradicted** by this map: no clustering between matrices (the spread of failures per matrix is, if anything, narrower than independent failures would give: variance 0.91 against 1.55, P = 0.04 for being that narrow, so it is not over-dispersed), no excess of adjacent failed registers (18 against 13.6 expected, P = 0.17), and no wafer-position effect (outer bands 26.6%, middle bands 26.0%). One wafer, 28 matrices, so this has little power against mild clustering. |
+| The fabricated chip resembles the modelled core | **No.** The chip is a 32-bit RISC-V ("RV32-WUJI") with 5,900 transistors; the modelled core is a hypothetical 64-bit slice-serial design. (A summary of the paper's Extended Data produced by the fetch tool, which I did not verify, reports a bit-serial ALU and a 32-bit data register built from four 8-bit blocks.) |
+
+**An unexplained oddity.** The first register of each matrix failed in 1 of 28 matrices, against 7.4
+expected (P = 0.002 for this position; about 0.017 allowing for the eight positions examined); the other seven positions fail at 21% to 46%. It may be a layout or test
+effect. It is a systematic position dependence in the data and I cannot explain it.
+
+### Effect on the parameters and conclusions
+- `yield.p_slice_good` moves from tier C to **tier B** (calibrated, with the source named), and the
+  measurements themselves are added as tier A. The value, 0.71, is unchanged, so no result in this
+  document changes. The assumptions register now shows 2 tier A, 2 tier B and 22 tier C.
+- **The equivalence assumption behind tier B is real and untested.** A byte slice of the modelled
+  register file is assumed to yield like the measured shift register. They are different circuits:
+  a shift register is a flip-flop chain, and an addressable register-file slice has read and write
+  ports. The ALU's p^(K/8) is still a pure assumption (it treats an 8-bit ALU slice as having about
+  the 144 transistors of the measured register).
+- **Sensitivity to which reading of the measurement is used** (closed form, ideal crossbar):
+
+| | p = 0.71 (caption) | p = 0.7366 (map count) |
+|---|---|---|
+| 64-bit register, no spares | 0.0646 | 0.0867 |
+| register file, 112 spares | 0.7481 | 0.9658 |
+| register file, 128 spares | 0.9718 | 0.9990 |
+| spares for 99% (area) | 134 (1.52x) | 119 (1.47x) |
+| ALU spares for 99%, K = 8 / 16 / 32 | 9 / 12 / 22 | 9 / 11 / 18 |
+
+  The register-file cliff moves by about 15 spares, and the headline "the shared pool works at
+  about 1.5x" holds under both. The K ordering (finer slices need less spare area) is unchanged.
+- **The M4 upset rates are not touched.** The SI has no radiation data, so every upset rate stays
+  tier C.
+
+### Still unverified
+The paper's main text, including whether it claims a yield for the whole processor (a news summary
+reports one above 99.9%, which I could not check and which is not the same quantity as the
+register yield); how "works" was decided for a register; whether 71% is typical, best, or one
+wafer's figure; and the yield of any circuit other than the 8-bit register, which is what the
+ALU assumption needs. If you can get the main text through an institutional login, that is the
+next thing to read.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
-(tier C, unverified secondary figure), 32 registers x 8 byte slices = 256 slices.
+(tier C and unverified when this was run; since calibrated to the paper's SI, which changes nothing here), 32 registers x 8 byte slices = 256 slices.
 
 - 64-bit register, 0 spares: 0.71^8 = 0.0646.
 - Whole-file yield, with the pool treated as an ideal crossbar:
@@ -245,7 +314,7 @@ Simulation only; the defect model is tier C throughout (`config/params.toml`,
 
 ### What was simulated
 Each physical slice is defective independently with probability 1 - p (p = 0.71 for an
-8-bit register slice, unverified). A defective slice has one stuck output bit or a stuck
+8-bit register slice; unverified when these runs were made and later calibrated to the paper's SI at the same value, so nothing here changes). A defective slice has one stuck output bit or a stuck
 carry. The chip's real boot self-test then runs on the real register-file and ALU models
 (every slice, primaries and spares), and defective primaries are remapped onto good
 spares. A chip is repaired if enough good slices exist. The register file and the ALU
