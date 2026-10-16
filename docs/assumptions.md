@@ -6,9 +6,16 @@ hand (a test fails if this file drifts from the parameters).
 Tiers: **A** published measurement (source given), **B** calibrated model (source given),
 **C** hypothetical. A simulation that uses any tier-C value is a what-if, not a measurement.
 
-**23 parameters: 0 tier A, 0 tier B, 23 tier C.**
+**26 parameters: 2 tier A, 2 tier B, 22 tier C.**
 
-No parameter has been checked against a primary source. Every result in `docs/results.md` is conditional on tier-C values.
+4 parameters have a source: `yield.implied_per_transistor`, `yield.measured_8bit_shift_register`, `yield.measured_8bit_shift_register_from_map`, `yield.p_slice_good`. All come from one paper's Supplementary Information (Supplementary Fig. 7); its main text was not read. Every other parameter is tier C, and every result in `docs/results.md` is still conditional on those.
+
+| sourced parameter | source |
+|---|---|
+| `yield.implied_per_transistor` | Derived from 0.71 over 144 transistors (Supp. Fig. 7(c)); 0.99788 from the map count |
+| `yield.measured_8bit_shift_register` | Ao, Zhou et al., Nature 640, 654-661 (2025), Supplementary Information, Supplementary Fig. 7(c) caption |
+| `yield.measured_8bit_shift_register_from_map` | Same figure, panel (c): the wafer map, transcribed by scripts/si_fig7_extract.py into results/si_fig7_wafer_map.txt |
+| `yield.p_slice_good` | Calibrated to the measured 8-bit shift-register yield above (Nature 640, 654-661, Supp. Fig. 7(c)); the lower of the two readings is used |
 
 | parameter | value | unit | tier | note |
 |---|---|---|---|---|
@@ -33,5 +40,8 @@ No parameter has been checked against a primary source. Every result in `docs/re
 | `run.hang_budget` | 3 x golden instructions + 1000 | instructions | C | A run that has not finished within this many instructions is a hang. |
 | `selftest.rounds` | 1 | rounds | C | Boot self-test repetitions. One round is enough for hard defects and far from enough for weak ones (see docs/results.md, M3). Test time and its cost are not modelled. |
 | `spares.crossbar` | ideal: any spare serves any slice | model | C | The remap table, its multiplexers and the self-test logic are assumed fault-free and free. Every yield figure is therefore an upper bound. |
-| `yield.p_slice_good` | 0.71 | probability | C | Probability that one 8-bit register slice is defect-free. Taken from unverified secondary reports of the Fudan MoS2 RISC-V chip (8-bit register yield about 71%). Must be checked against the primary paper before it can be promoted to tier A. |
+| `yield.implied_per_transistor` | 0.99762 | probability | B | Per-transistor yield implied by the register measurement if transistors fail independently: 0.71 ** (1/144). Useful for sizing other circuits by transistor count. |
+| `yield.measured_8bit_shift_register` | 0.71 | probability | A | The caption says the yield of 8-bit shift registers, each of 144 transistors, "can reach 71% on the wafer" (224 registers on a 4-inch wafer). "Can reach" may mean a best case. This is a measurement of an 8-bit MoS2 shift register, not of a register-file slice. |
+| `yield.measured_8bit_shift_register_from_map` | 0.7366 | probability | A | Counting the map gives 165 working of 224 registers (59 failed), which is 73.7%, not exactly the caption's 71%. The SI does not say which definition the caption uses; both are kept. |
+| `yield.p_slice_good` | 0.71 | probability | B | Probability that one 8-bit register slice is defect-free. The assumption behind calling this calibrated rather than measured: a byte slice of the modelled register file yields like the measured 8-bit shift register of 144 transistors. |
 | `yield.slice_width_bits` | 8 | bits | C | Granularity of a physical register slice (a byte slice). A modelling choice. |

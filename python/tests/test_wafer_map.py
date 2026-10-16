@@ -35,6 +35,15 @@ class PublishedWaferMap(unittest.TestCase):
         self.assertEqual(t["row0_failed"], 1)
         self.assertLess(t["p_row0_at_most"], 0.01)                      # an unexplained position effect
 
+    def test_sourced_parameters_agree_with_the_map(self):
+        from radslice.params import load_params
+        p = load_params()
+        self.assertEqual(p["yield.measured_8bit_shift_register"].value, wm.CAPTION_YIELD)
+        self.assertAlmostEqual(p["yield.measured_8bit_shift_register_from_map"].value, self.s["pass_rate"], places=4)
+        self.assertEqual(p["yield.p_slice_good"].value, wm.CAPTION_YIELD)        # the lower reading is used
+        self.assertAlmostEqual(p["yield.implied_per_transistor"].value,
+                               self.s["caption_per_transistor_yield"], places=5)
+
     def test_binom_cdf(self):
         self.assertAlmostEqual(wm.binom_cdf(8, 8, 0.3), 1.0)
         self.assertAlmostEqual(wm.binom_cdf(0, 8, 0.5), 0.5**8)

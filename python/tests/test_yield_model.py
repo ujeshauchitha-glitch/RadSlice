@@ -41,11 +41,20 @@ class MonteCarlo(unittest.TestCase):
 
 
 class Params(unittest.TestCase):
-    def test_all_tier_c_for_now(self):
+    def test_tiers_are_valid_and_sourced_values_name_a_source(self):
         params = load_params()
         self.assertTrue(params)
         for p in params.values():
-            self.assertEqual(p.tier, "C", p.name)
+            self.assertIn(p.tier, ("A", "B", "C"), p.name)
+            if p.tier in ("A", "B"):
+                self.assertTrue(p.source, f"{p.name} is tier {p.tier} but names no source")
+
+    def test_only_the_paper_derived_yield_values_are_sourced(self):
+        # Everything except the four yield values read from the Nature SI stays tier C.
+        sourced = {n for n, p in load_params().items() if p.tier != "C"}
+        self.assertEqual(sourced, {"yield.measured_8bit_shift_register",
+                                   "yield.measured_8bit_shift_register_from_map",
+                                   "yield.p_slice_good", "yield.implied_per_transistor"})
 
     def test_yield_param_matches_test_constant(self):
         self.assertEqual(load_params()["yield.p_slice_good"].value, P)

@@ -41,9 +41,19 @@ def render(path: Path = DEFAULT_PATH) -> str:
         counts[p.tier] += 1
     lines = [HEADER, f"**{len(params)} parameters: {counts['A']} tier A, {counts['B']} tier B, "
                      f"{counts['C']} tier C.**", ""]
-    if counts["A"] == 0 and counts["B"] == 0:
+    sourced = [n for n in sorted(params) if params[n].tier in ("A", "B")]
+    if not sourced:
         lines += ["No parameter has been checked against a primary source. Every result in "
                   "`docs/results.md` is conditional on tier-C values.", ""]
+    else:
+        lines += [f"{len(sourced)} parameters have a source: " + ", ".join(f"`{n}`" for n in sourced) +
+                  ". All come from one paper's Supplementary Information (Supplementary Fig. 7); its "
+                  "main text was not read. Every other parameter is tier C, and every result in "
+                  "`docs/results.md` is still conditional on those.", ""]
+        lines += ["| sourced parameter | source |", "|---|---|"]
+        for n in sourced:
+            lines.append(f"| `{n}` | {params[n].source.replace('|', '\\|')} |")
+        lines.append("")
     lines += ["| parameter | value | unit | tier | note |", "|---|---|---|---|---|"]
     for name in sorted(params):
         p = params[name]
