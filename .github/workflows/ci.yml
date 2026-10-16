@@ -35,3 +35,15 @@ jobs:
           for k in 8 16 32; do
             bash scripts/run-hw-riscv-tests.sh $k rv64ui rv64mi
           done
+
+  m3-yield:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: cmake -S . -B build && cmake --build build -j --target radslice_yield
+      - run: python scripts/m3_yield.py --trials 5000

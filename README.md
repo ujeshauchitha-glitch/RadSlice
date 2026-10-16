@@ -30,3 +30,16 @@ cmake --build build && ctest --test-dir build -R radslice_
 bash scripts/run-hw-riscv-tests.sh 16 rv64ui rv64mi   # K = 8, 16 or 32
 python scripts/m2_cycles.py                           # model-estimate cycle overhead
 ```
+
+Simulated yield against the closed form (needs `radslice_yield`):
+
+```bash
+python scripts/m3_yield.py
+```
+
+A defective chip under riscv-tests (`RADSLICE_SELFTEST=0` leaves the defects in, as a control):
+
+```bash
+RADSLICE_DEFECT_SEED=1 RADSLICE_RF_SPARES=160 RADSLICE_ALU_SPARES=24 \
+  bash scripts/run-hw-riscv-tests.sh 16 rv64ui rv64mi
+```

@@ -52,11 +52,41 @@ the ALU slice. Keeping the PC adders plain also removes their cost from the slic
 side. Any of these changing materially changes the overhead.
 
 ## G5. A boot self-test can find and remap defective slices
-**Claim to test.** Self-test plus remap recovers yield to the closed-form
-prediction.
-**Answered by.** M3.
-**Wrong if.** Simulated yield differs from the closed form beyond Monte Carlo
-error, or defects escape the test and corrupt results.
+**Claim to test.** A boot-time self-test over every physical slice (primaries and
+spares) finds the defective ones, a remap onto good spares repairs the chip, and the
+fraction of chips that end up repaired matches the closed form.
+**Answered by.** M3: a simulator that samples defects, runs the real self-test and
+remap on the real register-file and ALU models, and compares the pass rate with
+`yield_model.py` within Monte Carlo error.
+**Wrong if.**
+- the simulated yield differs from the closed form by more than 4 standard errors
+  (the closed form or the simulator is then wrong, and I say which);
+- a chip that passes the self-test then computes a wrong result with hard defects
+  (a test escape; with hard stuck-at defects there should be none);
+- with intermittent ("weak") defects, the observed escape rate differs from the
+  closed form (1 - q)^(2R) per defective slice (q: activation probability, R: test
+  rounds), or cannot be pushed down by more rounds.
+**Assumptions (all tier C, see params.toml).**
+- Slices are defective independently, with probability 1 - p (p = 0.71 for an 8-bit
+  register slice; unverified).
+- A defective slice has exactly one stuck output bit or a stuck carry. Real defects
+  are richer; this is the simplest fault that a test can be wrong about.
+- An ALU slice of K bits has p_K = p^(K/8): the same defect density per bit.
+- Spares are interchangeable with any slice (an ideal crossbar) and the remap table
+  and its logic are defect-free, so yields are upper bounds. Clustered defects are
+  not modelled in M3.
+- The register file and ALU are repaired independently, each with its own spares, and
+  chip yield is the product.
+
+## G5a. Slice granularity and spare area
+**Claim to test.** For equal spare *area*, finer ALU slices (K = 8) yield better than
+coarser ones (K = 32), because a spare replaces less silicon.
+**Answered by.** M3 closed form and simulation of ALU yield against spare area for
+K = 8, 16, 32.
+**Wrong if.** The curves cross or coincide once area is counted per bit, or a
+modelled cost of finer slicing (more beats per op, see G4; more mux/remap hardware,
+not modelled) outweighs the yield gain. M3 reports yield only; the beat cost is in
+the M2 numbers, and the mux cost is unknown.
 
 ## G6. Combined yield and radiation handling on a slice-serial RV64 core
 This is the research question. Spare slices exist in silicon, so no novelty is

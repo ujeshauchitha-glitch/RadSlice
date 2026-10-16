@@ -101,3 +101,41 @@ unit = "bool"
 note = """Assumes operand read and result write stream at the ALU's slice width, so
 register-file access is hidden behind the ALU beats. For K = 16 or 32 this needs a
 wider-than-byte read/write port into the byte-slice register file."""
+
+# --- Permanent-defect model (used from M3) -------------------------------
+
+[defects.fault_model]
+value = "one stuck output bit or stuck carry per defective slice"
+tier = "C"
+unit = "model"
+note = """The simplest fault a test can be wrong about. Real MoS2 defects are richer
+(and may cluster); nothing here is calibrated to any device."""
+
+[defects.alu_unit_good_probability]
+value = "p_slice_good ** (K / 8)"
+tier = "C"
+unit = "probability"
+note = """An ALU slice of K bits has the same defect density per bit as an 8-bit
+register slice. The 0.71 figure is for a register slice, not for logic; applying it
+to ALU logic is an assumption."""
+
+[defects.activation]
+value = 1.0
+tier = "C"
+unit = "probability"
+note = """Probability a defect shows on one access. 1.0 = hard defect (always). Values
+below 1 model weak/intermittent defects and are swept in the weak-defect experiment."""
+
+[selftest.rounds]
+value = 1
+tier = "C"
+unit = "rounds"
+note = """Boot self-test repetitions. One round is enough for hard defects and far from
+enough for weak ones (see docs/results.md, M3). Test time and its cost are not modelled."""
+
+[spares.crossbar]
+value = "ideal: any spare serves any slice"
+tier = "C"
+unit = "model"
+note = """The remap table, its multiplexers and the self-test logic are assumed
+fault-free and free. Every yield figure is therefore an upper bound."""
