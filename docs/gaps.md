@@ -17,7 +17,9 @@ redundancy.
 loss in either direction), or the primary-source `p` differs enough to change
 the conclusion. Update: `p = 0.71` has since been checked against the paper's Supplementary
 Information (an 8-bit MoS2 shift register; the map count gives 73.7%), and the one wafer map
-shows no clustering; see `docs/results.md`. The main text remains unread.
+shows no clustering; see `docs/results.md`. The main text remains unread. An inverter dataset from the same paper's source data shows an
+unexplained ordering pattern among its failures (undocumented column order), so independence is
+not settled.
 
 ## G2. Per-register spares versus a shared spare pool
 **Claim to test.** A shared pool beats per-register spares at equal area.

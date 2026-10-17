@@ -24,7 +24,7 @@ project contributes is a combined, simulated study of them on a slice-serial RV6
 
 | # | Conclusion | Evidence | Rests on | Would be overturned by |
 |---|---|---|---|---|
-| C1 | Yield collapses with width: a 64-bit register (8 byte slices) with no spares yields 0.71^8 = 0.0646. | M0 closed form; M3 simulation | independent slice defects at p = 0.71 (now calibrated to the paper's SI; shift register, not a register-file slice) | clustering at register-file scale (none seen in the one 8-bit-register wafer map), or a register-file slice yielding unlike the measured shift register |
+| C1 | Yield collapses with width: a 64-bit register (8 byte slices) with no spares yields 0.71^8 = 0.0646. | M0 closed form; M3 simulation | independent slice defects at p = 0.71 (now calibrated to the paper's SI; shift register, not a register-file slice) | clustering at register-file scale (none seen in the one 8-bit-register wafer map, but an unexplained cluster in the order of the inverter source data), or a register-file slice yielding unlike the measured shift register |
 | C2 | A shared spare pool beats per-register spares at equal spare count: whole-file yield 0.97 (128 spares, 1.5x slices) against about 0.0001 for 4 private spares per register. | M0, M3 | ideal crossbar; fault-free remap logic | a real crossbar/remap cost or delay that erases the gain; clustered defects exhausting the pool locally |
 | C3 | A bit-sliced RV64I ALU (K = 8, 16, 32) and byte-sliced register file are functionally exact with zero faults. | M2: 119.5M ALU checks against an independent reference (exhaustive at 8 bits, dense at 16 and 64), lockstep on random programs, rv64ui + rv64mi 65/65 at every K; deliberate bugs caught | the reference and the scope (data ops; PC adders, M/A/F/D and CSRs stay plain) | a single operand pair that differs; 64-bit exhaustiveness is not claimed |
 | C4 | Slice-serial execution costs cycles in proportion to slice count: about 4.2x, 2.4x, 1.4x for K = 8, 16, 32 on a compute loop (base cost 1), less as the non-ALU cost grows. | M2 analytical model | four tier-C cost choices (non-ALU cost, one beat per slice op regardless of K, free W-form sign extension, wide enough register port) | a cycle-accurate model showing wider slices are slower per beat, which narrows the gap |
@@ -141,6 +141,40 @@ material in the SI is Supplementary Fig. 7. Anything the main text says about yi
 expected (P = 0.002 for this position; about 0.017 allowing for the eight positions examined); the other seven positions fail at 21% to 46%. It may be a layout or test
 effect. It is a systematic position dependence in the data and I cannot explain it.
 
+### The paper's source-data files (checked after the SI)
+The nine source-data archives (`MOESM2` to `MOESM10`; 52 spreadsheets) are the measured and simulated
+curves and waveforms behind Figs 1 to 4, Extended Data Figs 2, 5 and 7, the importance rankings of
+process steps, and the 25-cell library. **They contain no yield data**: no wafer map, no per-register
+pass/fail, no yield table and nothing about radiation. Supplementary Fig. 7 has no source-data file
+among them, so the register yield could not be recomputed from raw data; the figure remains the only
+evidence for it.
+
+One file does bear on the project: `Fig2_f.xlsx`, **897 voltage-transfer curves of MoS2 NMOS inverters
+at Vdd = 4 V (893 distinct)**. Using my own definition of "working" (full swing: V_OH above 3.5 V and
+V_OL below a threshold), reproduced by `scripts/nature_source_data_check.py` from your copy of the zip:
+
+| V_OL threshold | failing inverters | 95% interval |
+|---|---|---|
+| 0.3 V | 25 of 897 (2.8%) | 1.9% to 4.1% |
+| 0.5 V | 7 of 897 (0.78%) | 0.38% to 1.6% |
+| 0.8 V and above | 5 of 897 (0.56%) | 0.24% to 1.3% |
+
+- **A cross-check on the per-transistor failure rate, in order of magnitude only.** An inverter has two
+  transistors, so 0.78% failing inverters implies about 0.39% failing transistors (0.19% to 0.80%). The
+  register measurement implies 0.21% to 0.24% over 144 transistors. These agree in magnitude and the
+  register figure sits inside the inverter interval. They are not the same quantity (an inverter is
+  not a register, and "working" here is my definition, which moves the result by a factor of five),
+  so this cannot decide between 71% and 73.7%.
+- **An unexplained ordering pattern.** In the file's column order, 5 of the 7 failing inverters fall
+  within 21 consecutive curves (indices 866 to 886), and the chance of that if the 7 failures were
+  placed at random is about 0.0001. The column order is not documented, so I do not know whether it
+  reflects physical position, measurement order, a bad batch, or something else, and I do not
+  treat it as evidence of clustered defects. If it does reflect position it would contradict the
+  wafer map's lack of clustering. The paper's main text would say what the curves are.
+- **What changed.** Nothing in the model or the parameters. The independence assumption now stands as
+  "not contradicted at the 8-bit register scale on one wafer, with one unexplained ordering pattern
+  in a different dataset", which is weaker than my first statement of it.
+
 ### Effect on the parameters and conclusions
 - `yield.p_slice_good` moves from tier C to **tier B** (calibrated, with the source named), and the
   measurements themselves are added as tier A. The value, 0.71, is unchanged, so no result in this
@@ -170,8 +204,8 @@ The paper's main text, including whether it claims a yield for the whole process
 reports one above 99.9%, which I could not check and which is not the same quantity as the
 register yield); how "works" was decided for a register; whether 71% is typical, best, or one
 wafer's figure; and the yield of any circuit other than the 8-bit register, which is what the
-ALU assumption needs. If you can get the main text through an institutional login, that is the
-next thing to read.
+ALU assumption needs. The source-data files cover Figs 1 to 4 and some Extended Data figures and
+have no yield data (above). The main text is still the next thing to read.
 
 ## M0: closed-form yield model
 
