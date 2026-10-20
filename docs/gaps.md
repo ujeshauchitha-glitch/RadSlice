@@ -15,11 +15,12 @@ redundancy.
 **Answered by.** M0 closed-form model; M3 Monte Carlo.
 **Wrong if.** Defects are strongly clustered (independence then misstates the
 loss in either direction), or the primary-source `p` differs enough to change
-the conclusion. Update: `p = 0.71` has since been checked against the paper's Supplementary
-Information (an 8-bit MoS2 shift register; the map count gives 73.7%), and the one wafer map
-shows no clustering; see `docs/results.md`. The main text remains unread. An inverter dataset from the same paper's source data shows an
-unexplained ordering pattern among its failures (undocumented column order), so independence is
-not settled.
+the conclusion. Update: `p = 0.71` has since been checked against the paper (main text and SI): 71% for an
+8-bit MoS2 shift register (the wafer map counts 73.7%) and about 7% for a 64-bit register, which
+imply the same per-transistor yield, as independent failures predict; the one wafer map shows no
+clustering. The paper gives no chip-level yield and no radiation data. See `docs/results.md`; an
+inverter dataset from the paper's source data shows one unexplained ordering pattern, so
+independence above register scale is not settled.
 
 ## G2. Per-register spares versus a shared spare pool
 **Claim to test.** A shared pool beats per-register spares at equal area.
