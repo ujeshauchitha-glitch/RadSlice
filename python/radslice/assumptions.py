@@ -47,9 +47,10 @@ def render(path: Path = DEFAULT_PATH) -> str:
                   "`docs/results.md` is conditional on tier-C values.", ""]
     else:
         lines += [f"{len(sourced)} parameters have a source: " + ", ".join(f"`{n}`" for n in sourced) +
-                  ". All come from one paper's Supplementary Information (Supplementary Fig. 7); its "
-                  "main text was not read. Every other parameter is tier C, and every result in "
-                  "`docs/results.md` is still conditional on those.", ""]
+                  ". All come from one paper (Ao, Zhou et al., Nature 640, 654-661, 2025: main text "
+                  "and Supplementary Fig. 7) and are all about yield. Every other parameter, "
+                  "including every upset rate, is tier C, and every result in `docs/results.md` is "
+                  "still conditional on those.", ""]
         lines += ["| sourced parameter | source |", "|---|---|"]
         for n in sourced:
             lines.append(f"| `{n}` | {params[n].source.replace('|', '\\|')} |")

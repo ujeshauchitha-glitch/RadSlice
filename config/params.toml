@@ -8,9 +8,9 @@
 #
 # Sourced values (tiers A and B) come from one paper: Ao, Zhou et al., "A RISC-V 32-bit
 # microprocessor based on two-dimensional semiconductors", Nature 640, 654-661 (2025),
-# doi:10.1038/s41586-025-08759-9 - specifically Supplementary Fig. 7, read from its
-# Supplementary Information. The main text of the paper was behind a paywall and has NOT
-# been read, so any yield claim made only there is unchecked. Everything else is tier C.
+# doi:10.1038/s41586-025-08759-9 - its main text (pages 657 and 659) and Supplementary
+# Fig. 7. The paper reports no radiation or upset data and no whole-processor yield.
+# Everything else is tier C.
 
 [meta]
 schema = 1
@@ -21,42 +21,70 @@ schema = 1
 value = 0.71
 tier = "A"
 unit = "probability"
-source = "Ao, Zhou et al., Nature 640, 654-661 (2025), Supplementary Information, Supplementary Fig. 7(c) caption"
-note = """The caption says the yield of 8-bit shift registers, each of 144 transistors, "can
-reach 71% on the wafer" (224 registers on a 4-inch wafer). "Can reach" may mean a best
-case. This is a measurement of an 8-bit MoS2 shift register, not of a register-file slice."""
+source = "Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 659 and Supplementary Fig. 7(c)"
+note = """Main text: "The yield of 8-bit registers, each with 144 transistors, reached 71% at the
+wafer scale." (The supplementary caption says "can reach 71%".) 224 registers on a 4-inch
+wafer. This is a measurement of an 8-bit MoS2 shift register, the building block of the
+chip's own 32-bit register, not of a random-access register-file slice."""
 
 [yield.measured_8bit_shift_register_from_map]
 value = 0.7366
 tier = "A"
 unit = "probability"
-source = "Same figure, panel (c): the wafer map, transcribed by scripts/si_fig7_extract.py into results/si_fig7_wafer_map.txt"
+source = "Supplementary Fig. 7(c), the wafer map, transcribed by scripts/si_fig7_extract.py into results/si_fig7_wafer_map.txt"
 note = """Counting the map gives 165 working of 224 registers (59 failed), which is 73.7%, not
-exactly the caption's 71%. The SI does not say which definition the caption uses; both are
-kept. The same map shows no clustering of failures and 2 of 28 64-bit matrices with no
-failed register (7.1%); see docs/results.md."""
+exactly the 71% in the text. The paper does not explain the difference; both are kept.
+The same map shows no clustering of failures; see docs/results.md."""
+
+[yield.measured_64bit_register]
+value = 0.07
+tier = "A"
+unit = "probability"
+source = "Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 659"
+note = """"approximately 7% for a 64-bit register with 1,152 transistors". The authors round
+it; the independent scaling of the 8-bit figure gives 0.71 ** 8 = 0.0646. 1,152 is 8 times
+144. How the 64-bit yield was measured is not stated in the text (the supplementary wafer map
+has 28 matrices of 8 parallel 8-bit registers, 2 of which had no failed register)."""
+
+[yield.measured_transistor]
+value = 0.9992
+tier = "A"
+unit = "probability"
+source = "Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 657"
+note = """"The overall transistor yield reached 99.92%": three batches of wafers, each with
+7,000 transistors, 800 randomly selected for testing. Isolated-device yield; it does not
+predict register yield (see yield.implied_per_transistor)."""
+
+[yield.measured_inverter]
+value = 0.9977
+tier = "A"
+unit = "probability"
+source = "Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 657"
+note = """"898 out of 900 inverters worked correctly with a yield of 99.77%": a 30 x 30
+array in the 6 mm x 6 mm region of the chip, overall noise tolerance 0.5 V. Two failures in
+900 (95% interval 0.06% to 0.81% failing)."""
 
 [yield.p_slice_good]
 value = 0.71
 tier = "B"
 unit = "probability"
-source = "Calibrated to the measured 8-bit shift-register yield above (Nature 640, 654-661, Supp. Fig. 7(c)); the lower of the two readings is used"
-note = """Probability that one 8-bit register slice is defect-free. The assumption behind
-calling this calibrated rather than measured: a byte slice of the modelled register file
-yields like the measured 8-bit shift register of 144 transistors. They are different
-circuits (a shift register is a flip-flop chain; an addressable register-file slice has
-read and write ports), and the fabricated chip is a 32-bit bit-serial design, not the
-64-bit core modelled here."""
+source = "Calibrated to the measured 8-bit shift-register yield above (Nature 640, 654-661, p. 659); the lower of the two readings is used"
+note = """Probability that one 8-bit register slice is defect-free. Calibrated, not measured,
+because the modelled slice is assumed to yield like the measured 8-bit shift register of 144
+transistors: the same circuit block as the chip's own register, but not a random-access
+register-file slice with read and write ports. The fabricated chip is a 32-bit bit-serial
+design built on SERV with a 1-bit ALU, not the 64-bit core modelled here."""
 
 [yield.implied_per_transistor]
 value = 0.99762
 tier = "B"
 unit = "probability"
-source = "Derived from 0.71 over 144 transistors (Supp. Fig. 7(c)); 0.99788 from the map count"
-note = """Per-transistor yield implied by the register measurement if transistors fail
-independently: 0.71 ** (1/144). Useful for sizing other circuits by transistor count. It is
-not stated in the paper's supplementary information, and a secondary report of a processor
-yield above 99.9% (not verified, main text unread) is not the same quantity."""
+source = "Derived: 0.71 over 144 transistors; the 64-bit figure (~7% over 1,152) gives 0.99769"
+note = """Per-transistor yield that independent failures would need to produce the register
+yields: 0.71 ** (1/144). The two register yields (8-bit and 64-bit) imply the same value, so
+yield falls with transistor count as independent failures predict. It is about three times
+worse (0.24% failing) than the isolated-transistor test (0.08%) and twice the inverter test
+(0.11%), so register yield is not predicted by device-level yield."""
 
 [yield.slice_width_bits]
 value = 8
@@ -153,7 +181,9 @@ unit = "probability"
 note = """An ALU slice of K bits has the same defect density per bit as an 8-bit
 register slice. The 0.71 figure is for a register slice, not for logic; applying it
 to ALU logic is an assumption. In transistor terms it assumes an 8-bit ALU slice has about
-the same 144 transistors as the measured 8-bit shift register; the real count is unknown."""
+the same 144 transistors as the measured 8-bit shift register; the real count is unknown.
+The paper's two register yields (144 and 1,152 transistors) do scale as p ** (transistors / 144),
+which supports area-proportional scaling for register-like circuits."""
 
 [defects.activation]
 value = 1.0
