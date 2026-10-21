@@ -6,12 +6,17 @@ hand (a test fails if this file drifts from the parameters).
 Tiers: **A** published measurement (source given), **B** calibrated model (source given),
 **C** hypothetical. A simulation that uses any tier-C value is a what-if, not a measurement.
 
-**34 parameters: 5 tier A, 3 tier B, 26 tier C.**
+**46 parameters: 8 tier A, 5 tier B, 33 tier C.**
 
-8 parameters have a source: `yield.cluster_alpha_min_matrix_scale`, `yield.implied_per_transistor`, `yield.measured_64bit_register`, `yield.measured_8bit_shift_register`, `yield.measured_8bit_shift_register_from_map`, `yield.measured_inverter`, `yield.measured_transistor`, `yield.p_slice_good`. All come from one paper (Ao, Zhou et al., Nature 640, 654-661, 2025: main text and Supplementary Fig. 7) and are all about yield. Every other parameter, including every upset rate, is tier C, and every result in `docs/results.md` is still conditional on those.
+13 parameters have a source: `cost.adder_bit_transistors`, `cost.mux2_transistors`, `cost.rf_block_transistors`, `cost.selection_module_transistors`, `cost.store_bit_transistors`, `yield.cluster_alpha_min_matrix_scale`, `yield.implied_per_transistor`, `yield.measured_64bit_register`, `yield.measured_8bit_shift_register`, `yield.measured_8bit_shift_register_from_map`, `yield.measured_inverter`, `yield.measured_transistor`, `yield.p_slice_good`. All come from one paper (Ao, Zhou et al., Nature 640, 654-661, 2025: main text and Supplementary Fig. 7) and are all about yield. Every other parameter, including every upset rate, is tier C, and every result in `docs/results.md` is still conditional on those.
 
 | sourced parameter | source |
 |---|---|
+| `cost.adder_bit_transistors` | Ao, Zhou et al., Nature 640, 654-661 (2025), Extended Data Fig. 5 |
+| `cost.mux2_transistors` | Derived: the 27-transistor four-input selection module is three 2-input selections |
+| `cost.rf_block_transistors` | Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 659 |
+| `cost.selection_module_transistors` | Ao, Zhou et al., Nature 640, 654-661 (2025), Extended Data Fig. 5 |
+| `cost.store_bit_transistors` | Derived: 144 transistors per 8-bit register block, divided by 8 |
 | `yield.cluster_alpha_min_matrix_scale` | Derived from the Supplementary Fig. 7 wafer map (28 matrices of 8 registers) by a one-sided likelihood-ratio test, python/radslice/cluster_model.py |
 | `yield.implied_per_transistor` | Derived: 0.71 over 144 transistors; the 64-bit figure (~7% over 1,152) gives 0.99769 |
 | `yield.measured_64bit_register` | Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 659 |
@@ -24,6 +29,18 @@ Tiers: **A** published measurement (source given), **B** calibrated model (sourc
 | parameter | value | unit | tier | note |
 |---|---|---|---|---|
 | `alu.slice_width_bits` | 16 | bits | C | K. Swept over 8, 16, 32. Each ALU op takes 64/K beats. |
+| `cost.adder_bit_transistors` | 27 | transistors | A | A 1-bit controlled adder with its control logic. An ALU that also shifts, compares and does logic is bigger than an adder; that is the tier-C factor cost.alu_factor. |
+| `cost.alu_factor` | 1 | x adder | C | ALU unit silicon as a multiple of an adder of the same width. Swept 1, 4, 16. |
+| `cost.alu_organisation` | replicated (one unit per position, as in M2/M3) and single (one K-bit unit reused) | model | C | Which one the fabricated chip's wording implies is ambiguous for K > 1; the paper's chip is K = 1 and reuses a single 1-bit ALU. Both are costed. |
+| `cost.area_proxy` | transistor count | model | C | Silicon area is taken as proportional to transistor count. Wiring, vias and layout are not counted; a crossbar is wire-dominated, so this probably understates routing cost. |
+| `cost.mux2_transistors` | 9 | transistors | B | Cost of one 2-input multiplexer; an m-input multiplexer is taken as 9(m-1). A different circuit style would change it; the study varies it from 0.5x to 4x. |
+| `cost.other_silicon` | 0 | transistors | C | Silicon outside the register file and the ALU (control, decode, PC adders, memory interface); unaffected by sparing. Swept 0, 6,000, 60,000. |
+| `cost.ports` | 2 read ports, 1 write port | ports | C | Ports that need steering or tag comparison. Swept 1 to 3 read ports. |
+| `cost.rf_block_transistors` | 144 | transistors | A | An 8-bit register block, the byte slice of this project's register file. |
+| `cost.routing_topology` | tagged spare array (default); per-position multiplexers (upper bound) | model | C | Tagged: spares sit in a side array, each holding a tag of the slice it replaces, compared on every access, and the output lane multiplexers gain one input per reaching spare. Per-position: every slice position has its own multiplexer over the spares in reach. |
+| `cost.selection_module_transistors` | 27 | transistors | A | A four-input selection module. |
+| `cost.store_bit_transistors` | 18 | transistors | B | Used for the storage part of one tag bit in the spare array. |
+| `cost.tag_compare_transistors` | 9 | transistors per tag bit per port | C | One XNOR-class gate. Swept 0 to 27. |
 | `cycles.base_per_instruction` | 1 | beats | C | Cost of everything outside the integer ALU: fetch, decode, memory access, the plain PC adders, and M/A/F/D. scripts/m2_cycles.py reports 1, 2 and 4. A larger value dilutes the ALU overhead, so the overhead at 1 is the pessimistic end. |
 | `cycles.beats_per_slice_op` | 1 | beats | C | One beat per slice-unit operation, independent of K. A real K-bit adder is slower for larger K; this ignores that. |
 | `cycles.regfile_port_matches_alu_slice` | True | bool | C | Assumes operand read and result write stream at the ALU's slice width, so register-file access is hidden behind the ALU beats. For K = 16 or 32 this needs a wider-than-byte read/write port into the byte-slice register file. |

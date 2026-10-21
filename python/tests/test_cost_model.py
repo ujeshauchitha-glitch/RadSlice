@@ -22,6 +22,21 @@ class TestAnchors(unittest.TestCase):
         self.assertEqual(cost.mux_T(0, c), 0)
 
 
+class TestParamsAgree(unittest.TestCase):
+    def test_constants_match_params_toml(self):
+        from radslice.params import load_params
+        ps = load_params()
+        self.assertEqual(ps["cost.rf_block_transistors"].value, cost.T_RF_BLOCK)
+        self.assertEqual(ps["cost.adder_bit_transistors"].value, cost.T_ADD_BIT)
+        self.assertEqual(ps["cost.selection_module_transistors"].value, cost.T_SEL4)
+        self.assertEqual(ps["cost.mux2_transistors"].value, cost.T_MUX2)
+        self.assertEqual(ps["cost.store_bit_transistors"].value, cost.T_STORE_BIT)
+        d = Costs()
+        self.assertEqual(ps["cost.tag_compare_transistors"].value, d.tag_compare_T)
+        self.assertEqual(ps["cost.alu_factor"].value, d.alu_factor)
+        self.assertEqual(ps["cost.other_silicon"].value, d.other_T)
+
+
 class TestRegisterFileCost(unittest.TestCase):
     def test_no_spares_no_routing(self):
         for topo in ("tagged", "per_position"):

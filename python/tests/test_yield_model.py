@@ -50,13 +50,16 @@ class Params(unittest.TestCase):
                 self.assertTrue(p.source, f"{p.name} is tier {p.tier} but names no source")
 
     def test_only_the_paper_derived_yield_values_are_sourced(self):
-        # Everything except the yield values read from the Nature paper stays tier C.
+        # Everything except the values read or derived from the Nature paper stays tier C.
         sourced = {n for n, p in load_params().items() if p.tier != "C"}
         self.assertEqual(sourced, {"yield.measured_8bit_shift_register",
                                    "yield.measured_8bit_shift_register_from_map",
                                    "yield.measured_64bit_register", "yield.measured_transistor",
                                    "yield.measured_inverter", "yield.cluster_alpha_min_matrix_scale",
-                                   "yield.p_slice_good", "yield.implied_per_transistor"})
+                                   "yield.p_slice_good", "yield.implied_per_transistor",
+                                   "cost.rf_block_transistors", "cost.adder_bit_transistors",
+                                   "cost.selection_module_transistors", "cost.mux2_transistors",
+                                   "cost.store_bit_transistors"})
 
     def test_yield_param_matches_test_constant(self):
         self.assertEqual(load_params()["yield.p_slice_good"].value, P)

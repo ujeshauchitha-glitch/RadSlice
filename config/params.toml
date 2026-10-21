@@ -303,3 +303,87 @@ tier = "C"
 unit = "regions"
 note = """Reach of a spare: 1 is the ideal pool (any spare serves any slice); n restricts each spare
 to 1/n of the register file; 32 is one region per register (private spares)."""
+
+[cost.rf_block_transistors]
+value = 144
+tier = "A"
+unit = "transistors"
+source = "Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 659"
+note = """An 8-bit register block, the byte slice of this project's register file."""
+
+[cost.adder_bit_transistors]
+value = 27
+tier = "A"
+unit = "transistors"
+source = "Ao, Zhou et al., Nature 640, 654-661 (2025), Extended Data Fig. 5"
+note = """A 1-bit controlled adder with its control logic. An ALU that also shifts, compares and does
+logic is bigger than an adder; that is the tier-C factor cost.alu_factor."""
+
+[cost.selection_module_transistors]
+value = 27
+tier = "A"
+unit = "transistors"
+source = "Ao, Zhou et al., Nature 640, 654-661 (2025), Extended Data Fig. 5"
+note = """A four-input selection module."""
+
+[cost.mux2_transistors]
+value = 9
+tier = "B"
+unit = "transistors"
+source = "Derived: the 27-transistor four-input selection module is three 2-input selections"
+note = """Cost of one 2-input multiplexer; an m-input multiplexer is taken as 9(m-1). A different
+circuit style would change it; the study varies it from 0.5x to 4x."""
+
+[cost.store_bit_transistors]
+value = 18
+tier = "B"
+unit = "transistors"
+source = "Derived: 144 transistors per 8-bit register block, divided by 8"
+note = """Used for the storage part of one tag bit in the spare array."""
+
+[cost.area_proxy]
+value = "transistor count"
+tier = "C"
+unit = "model"
+note = """Silicon area is taken as proportional to transistor count. Wiring, vias and layout are not
+counted; a crossbar is wire-dominated, so this probably understates routing cost."""
+
+[cost.routing_topology]
+value = "tagged spare array (default); per-position multiplexers (upper bound)"
+tier = "C"
+unit = "model"
+note = """Tagged: spares sit in a side array, each holding a tag of the slice it replaces, compared
+on every access, and the output lane multiplexers gain one input per reaching spare.
+Per-position: every slice position has its own multiplexer over the spares in reach."""
+
+[cost.ports]
+value = "2 read ports, 1 write port"
+tier = "C"
+unit = "ports"
+note = """Ports that need steering or tag comparison. Swept 1 to 3 read ports."""
+
+[cost.tag_compare_transistors]
+value = 9
+tier = "C"
+unit = "transistors per tag bit per port"
+note = """One XNOR-class gate. Swept 0 to 27."""
+
+[cost.alu_factor]
+value = 1
+tier = "C"
+unit = "x adder"
+note = """ALU unit silicon as a multiple of an adder of the same width. Swept 1, 4, 16."""
+
+[cost.other_silicon]
+value = 0
+tier = "C"
+unit = "transistors"
+note = """Silicon outside the register file and the ALU (control, decode, PC adders, memory interface);
+unaffected by sparing. Swept 0, 6,000, 60,000."""
+
+[cost.alu_organisation]
+value = "replicated (one unit per position, as in M2/M3) and single (one K-bit unit reused)"
+tier = "C"
+unit = "model"
+note = """Which one the fabricated chip's wording implies is ambiguous for K > 1; the paper's chip is
+K = 1 and reuses a single 1-bit ALU. Both are costed."""
