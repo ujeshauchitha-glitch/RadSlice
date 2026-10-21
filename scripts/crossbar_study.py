@@ -243,6 +243,28 @@ def main():
             k_star_replicated=kstar["replicated"], k_star_single=kstar["single"], alu_share=share)
     md.append("")
 
+    # E5
+    t_reg = load_params()["yield.implied_per_transistor"].value
+    t_dev = load_params()["yield.measured_transistor"].value
+    md.append("## E5. The routing is made of transistors that fail too\n")
+    md.append("Everything above, like M3, treats the routing, tag table and remap logic as fault-free. "
+              "If instead any one failed routing transistor were fatal, the chance that all of them work is "
+              f"{t_reg:.5f}^T with the per-transistor yield implied by the register measurements (tier B) or "
+              f"{t_dev:.4f}^T with the isolated-device figure (tier A). A critical block of only "
+              f"{math.log(2) / -math.log(t_reg):.0f} transistors already fails half the time at the first, "
+              f"{math.log(2) / -math.log(t_dev):.0f} at the second.\n")
+    md.append("| routing | transistors | P(all good), register-implied | P(all good), isolated device |")
+    md.append("|:--|---:|---:|---:|")
+    items = [("register file, ideal pool, 128 spares (tagged)", cost.rf_routing_T(128, 1, c0)),
+             ("register file, 8 regions, 192 spares (tagged)", cost.rf_routing_T(192, 8, c0)),
+             ("ALU single unit, K = 8, 4 spares", cost.alu_routing_T(8, 4, "single", c0)),
+             ("ALU replicated, K = 8, 8 spares", cost.alu_routing_T(8, 8, "replicated", c0))]
+    for name, tt in items:
+        a1, a2 = t_reg ** tt, t_dev ** tt
+        md.append(f"| {name} | {tt:,.0f} | {a1:.1e} | {a2:.1e} |")
+        add("E5", routing=name, transistors=tt, p_all_good_register_implied=a1, p_all_good_isolated=a2)
+    md.append("")
+
     cols = sorted({k for r in rows for k in r})
     with open(out / "crossbar_study.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols)

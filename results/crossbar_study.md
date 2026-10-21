@@ -130,3 +130,14 @@ One knob moved at a time from the default (independent defects). `K*` is the K w
 | base_cycles | 1 | 8 | 192 | 4.21 | 64 | 32 | 0.091 |
 | base_cycles | 4 | 8 | 192 | 4.21 | 32 | 32 | 0.091 |
 
+## E5. The routing is made of transistors that fail too
+
+Everything above, like M3, treats the routing, tag table and remap logic as fault-free. If instead any one failed routing transistor were fatal, the chance that all of them work is 0.99762^T with the per-transistor yield implied by the register measurements (tier B) or 0.9992^T with the isolated-device figure (tier A). A critical block of only 291 transistors already fails half the time at the first, 866 at the second.
+
+| routing | transistors | P(all good), register-implied | P(all good), isolated device |
+|:--|---:|---:|---:|
+| register file, ideal pool, 128 spares (tagged) | 199,296 | 5.7e-207 | 5.4e-70 |
+| register file, 8 regions, 192 spares (tagged) | 79,488 | 5.5e-83 | 2.4e-28 |
+| ALU single unit, K = 8, 4 spares | 324 | 4.6e-01 | 7.7e-01 |
+| ALU replicated, K = 8, 8 spares | 15,768 | 4.8e-17 | 3.3e-06 |
+
