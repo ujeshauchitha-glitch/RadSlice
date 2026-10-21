@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 
 #include "types.hpp"  // riscv-emu: u8, u32, u64
@@ -19,6 +20,36 @@ public:
     }
     double   uniform() { return static_cast<double>(next() >> 11) * (1.0 / 9007199254740992.0); }
     unsigned below(unsigned n) { return static_cast<unsigned>(next() % n); }
+
+    // A standard normal draw (Box-Muller; one value per call, the second is discarded so the
+    // stream does not depend on call history).
+    double normal() {
+        double u1 = uniform();
+        if (u1 < 1e-300) u1 = 1e-300;
+        const double u2 = uniform();
+        return std::sqrt(-2.0 * std::log(u1)) * std::cos(6.283185307179586 * u2);
+    }
+
+    // Gamma(shape, scale 1) by Marsaglia-Tsang, with the usual boost for shape < 1. Mean = shape.
+    double gamma(double shape) {
+        if (shape < 1.0) {
+            double u = uniform();
+            if (u < 1e-300) u = 1e-300;
+            return gamma(shape + 1.0) * std::pow(u, 1.0 / shape);
+        }
+        const double d = shape - 1.0 / 3.0, c = 1.0 / std::sqrt(9.0 * d);
+        for (;;) {
+            double x, v;
+            do {
+                x = normal();
+                v = 1.0 + c * x;
+            } while (v <= 0.0);
+            v = v * v * v;
+            double u = uniform();
+            if (u < 1e-300) u = 1e-300;
+            if (std::log(u) < 0.5 * x * x + d - d * v + d * std::log(v)) return d * v;
+        }
+    }
 
     // The generator for run `index` of a campaign seeded with `seed`.
     //

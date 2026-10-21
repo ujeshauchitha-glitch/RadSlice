@@ -14,6 +14,20 @@ struct ChipConfig {
     unsigned rounds     = 1;      // self-test repetitions
     double   activation = 1.0;    // 1.0 = hard defects; < 1 = intermittent (weak)
     bool     verify     = false;  // after repair, check the chip computes correctly
+
+    // Clustered defects (G9). cluster_alpha = 0 is the independent model used everywhere before.
+    // Otherwise each block of slices draws a defect-rate multiplier m ~ Gamma(alpha, mean 1) and
+    // each slice in it fails independently with probability 1 - exp(-lam * m), lam chosen so the
+    // MARGINAL slice yield stays exactly p. Small alpha = strong clustering.
+    double   cluster_alpha     = 0.0;
+    unsigned cluster_block     = 0;   // register-file slices per block; 0 = the whole file is one block
+    unsigned alu_cluster_block = 0;   // ALU units per block; 0 = the whole ALU is one block
+    bool     share_die         = false;  // one multiplier shared by every register-file copy and the ALU
+
+    // Sparing layout. spare_domains = 1 is the ideal shared pool (any spare serves any slice);
+    // n > 1 restricts each spare to the register-file region (1/n of the primaries) it sits in.
+    unsigned spare_domains = 1;
+    unsigned rf_copies     = 1;       // register-file copies that must all be repaired (3 for TMR)
 };
 
 struct ChipResult {
@@ -27,8 +41,11 @@ struct ChipResult {
 };
 
 // The two halves of inject_defects, for chips with several register-file copies.
-void inject_regfile_defects(SlicedRegFile& rf, const ChipConfig& cfg, Rng& rng, ChipResult& res);
-void inject_alu_defects(DefectiveSlicedAlu& alu, const ChipConfig& cfg, Rng& rng, ChipResult& res);
+// `die_multiplier` >= 0 is a defect-rate multiplier shared with other components (share_die).
+void inject_regfile_defects(SlicedRegFile& rf, const ChipConfig& cfg, Rng& rng, ChipResult& res,
+                            double die_multiplier = -1.0);
+void inject_alu_defects(DefectiveSlicedAlu& alu, const ChipConfig& cfg, Rng& rng, ChipResult& res,
+                        double die_multiplier = -1.0);
 
 // Sample defects into a register file and an ALU already built with their spares.
 // Fills the defect counts of `res`.

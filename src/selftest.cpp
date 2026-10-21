@@ -4,7 +4,7 @@
 
 namespace radslice {
 
-RepairReport regfile_self_test(SlicedRegFile& rf, unsigned rounds) {
+RepairReport regfile_self_test(SlicedRegFile& rf, unsigned rounds, unsigned domains) {
     RepairReport rep;
     const unsigned total = rf.total_slices();
     const unsigned prim  = SlicedRegFile::kPrimarySlices;
@@ -19,17 +19,31 @@ RepairReport regfile_self_test(SlicedRegFile& rf, unsigned rounds) {
             }
     for (unsigned p = 0; p < total; ++p) rf.write_physical(p, 0);
 
-    std::vector<unsigned> good_spares;
-    for (unsigned p = prim; p < total; ++p) {
-        if (bad[p]) ++rep.bad_spare;
-        else good_spares.push_back(p);
+    const unsigned spares = total - prim;
+    if (domains == 0 || prim % domains != 0 || (domains > 1 && (spares == 0 || spares % domains != 0))) {
+        rep.ok = false;                                  // an invalid sparing layout cannot repair anything
+        return rep;
     }
-    std::size_t next = 0;
+    const unsigned per_domain_primaries = prim / domains;
+    const unsigned per_domain_spares    = domains > 1 ? spares / domains : spares;
+
+    // good spares, grouped by the region they serve (one group for the ideal pool)
+    std::vector<std::vector<unsigned>> good_spares(domains);
+    for (unsigned p = prim; p < total; ++p) {
+        if (bad[p]) {
+            ++rep.bad_spare;
+        } else {
+            const unsigned dom = domains > 1 ? (p - prim) / per_domain_spares : 0;
+            good_spares[dom].push_back(p);
+        }
+    }
+    std::vector<std::size_t> next(domains, 0);
     for (unsigned p = 0; p < prim; ++p) {
         if (!bad[p]) continue;
         ++rep.bad_primary;
-        if (next < good_spares.size()) {
-            rf.set_remap(p, good_spares[next++]);
+        const unsigned dom = domains > 1 ? p / per_domain_primaries : 0;
+        if (next[dom] < good_spares[dom].size()) {
+            rf.set_remap(p, good_spares[dom][next[dom]++]);
             ++rep.remapped;
         } else {
             rep.ok = false;

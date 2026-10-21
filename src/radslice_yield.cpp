@@ -32,7 +32,9 @@ int main(int argc, char** argv) {
     unsigned long long trials = 1000, seed = 1;
     double p = 0.71, activation = 1.0;
     unsigned k = 16;
-    bool verify = false;
+    bool verify = false, share_die = false;
+    double cluster_alpha = 0.0;
+    unsigned cluster_block = 0, alu_cluster_block = 0, domains = 1, copies = 1;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -51,6 +53,12 @@ int main(int argc, char** argv) {
         else if (a == "--rounds") rounds = val();
         else if (a == "--activation") activation = std::strtod(val().c_str(), nullptr);
         else if (a == "--verify") verify = true;
+        else if (a == "--cluster-alpha") cluster_alpha = std::strtod(val().c_str(), nullptr);
+        else if (a == "--cluster-block") cluster_block = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        else if (a == "--alu-cluster-block") alu_cluster_block = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        else if (a == "--domains") domains = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        else if (a == "--copies") copies = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        else if (a == "--share-die") share_die = true;
         else { std::cerr << "unknown option " << a << "\n"; return 2; }
     }
 
@@ -73,7 +81,8 @@ int main(int argc, char** argv) {
     if (mode != "yield") { std::cerr << "unknown mode " << mode << "\n"; return 2; }
 
     std::cout << "rf_spares,alu_spares,k,p,trials,rf_ok,alu_ok,both_ok,verified,escapes,latent,"
-                 "mean_rf_defective_primary,mean_alu_defective\n";
+                 "mean_rf_defective_primary,mean_alu_defective,"
+                 "cluster_alpha,cluster_block,alu_cluster_block,domains,copies,share_die\n";
     for (double rs : list(rf))
         for (double as : list(alu)) {
             ChipConfig cfg;
@@ -81,6 +90,9 @@ int main(int argc, char** argv) {
             cfg.alu_spares = static_cast<unsigned>(as);
             cfg.rounds = static_cast<unsigned>(list(rounds).at(0));
             cfg.activation = activation; cfg.verify = verify;
+            cfg.cluster_alpha = cluster_alpha; cfg.cluster_block = cluster_block;
+            cfg.alu_cluster_block = alu_cluster_block; cfg.spare_domains = domains;
+            cfg.rf_copies = copies; cfg.share_die = share_die;
             Rng rng = row_rng();
             unsigned long long rf_ok = 0, alu_ok = 0, both = 0, ver = 0, esc = 0, lat = 0;
             double sum_rf = 0, sum_alu = 0;
@@ -93,7 +105,9 @@ int main(int argc, char** argv) {
             std::cout << cfg.rf_spares << "," << cfg.alu_spares << "," << cfg.k << "," << cfg.p << ","
                       << trials << "," << rf_ok << "," << alu_ok << "," << both << "," << ver << ","
                       << esc << "," << lat << "," << sum_rf / static_cast<double>(trials) << ","
-                      << sum_alu / static_cast<double>(trials) << "\n";
+                      << sum_alu / static_cast<double>(trials) << "," << cluster_alpha << ","
+                      << cluster_block << "," << alu_cluster_block << "," << domains << ","
+                      << copies << "," << (share_die ? 1 : 0) << "\n";
         }
     return 0;
 }
