@@ -1,15 +1,21 @@
 #include "radslice/defective_alu.hpp"
 
+#include <algorithm>
 #include <numeric>
 
 namespace radslice {
 
 DefectiveSlicedAlu::DefectiveSlicedAlu(unsigned xlen, unsigned slice_bits,
-                                       unsigned spare_units, u64 seed)
-    : SlicedAlu(xlen, slice_bits), rng_(seed) {
-    defects_.assign(num_slices() + spare_units, SliceDefect{});
+                                       unsigned spare_units, u64 seed, bool single_unit)
+    : SlicedAlu(xlen, slice_bits), single_(single_unit), rng_(seed) {
     map_.resize(num_slices());
-    std::iota(map_.begin(), map_.end(), 0u);
+    if (single_) {
+        defects_.assign(1 + spare_units, SliceDefect{});
+        std::fill(map_.begin(), map_.end(), 0u);       // every position uses the one unit
+    } else {
+        defects_.assign(num_slices() + spare_units, SliceDefect{});
+        std::iota(map_.begin(), map_.end(), 0u);
+    }
 }
 
 void DefectiveSlicedAlu::set_defect(unsigned unit, const SliceDefect& d) {

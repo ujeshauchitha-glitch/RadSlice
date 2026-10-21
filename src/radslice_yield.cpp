@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     unsigned long long trials = 1000, seed = 1;
     double p = 0.71, activation = 1.0;
     unsigned k = 16;
-    bool verify = false, share_die = false;
+    bool verify = false, share_die = false, alu_single = false;
     double cluster_alpha = 0.0;
     unsigned cluster_block = 0, alu_cluster_block = 0, domains = 1, copies = 1;
 
@@ -59,6 +59,7 @@ int main(int argc, char** argv) {
         else if (a == "--domains") domains = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
         else if (a == "--copies") copies = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
         else if (a == "--share-die") share_die = true;
+        else if (a == "--alu-single") alu_single = true;
         else { std::cerr << "unknown option " << a << "\n"; return 2; }
     }
 
@@ -82,7 +83,7 @@ int main(int argc, char** argv) {
 
     std::cout << "rf_spares,alu_spares,k,p,trials,rf_ok,alu_ok,both_ok,verified,escapes,latent,"
                  "mean_rf_defective_primary,mean_alu_defective,"
-                 "cluster_alpha,cluster_block,alu_cluster_block,domains,copies,share_die\n";
+                 "cluster_alpha,cluster_block,alu_cluster_block,domains,copies,share_die,alu_single\n";
     for (double rs : list(rf))
         for (double as : list(alu)) {
             ChipConfig cfg;
@@ -92,7 +93,7 @@ int main(int argc, char** argv) {
             cfg.activation = activation; cfg.verify = verify;
             cfg.cluster_alpha = cluster_alpha; cfg.cluster_block = cluster_block;
             cfg.alu_cluster_block = alu_cluster_block; cfg.spare_domains = domains;
-            cfg.rf_copies = copies; cfg.share_die = share_die;
+            cfg.rf_copies = copies; cfg.share_die = share_die; cfg.alu_single_unit = alu_single;
             Rng rng = row_rng();
             unsigned long long rf_ok = 0, alu_ok = 0, both = 0, ver = 0, esc = 0, lat = 0;
             double sum_rf = 0, sum_alu = 0;
@@ -107,7 +108,7 @@ int main(int argc, char** argv) {
                       << esc << "," << lat << "," << sum_rf / static_cast<double>(trials) << ","
                       << sum_alu / static_cast<double>(trials) << "," << cluster_alpha << ","
                       << cluster_block << "," << alu_cluster_block << "," << domains << ","
-                      << copies << "," << (share_die ? 1 : 0) << "\n";
+                      << copies << "," << (share_die ? 1 : 0) << "," << (alu_single ? 1 : 0) << "\n";
         }
     return 0;
 }

@@ -124,7 +124,7 @@ void inject_defects(SlicedRegFile& rf, DefectiveSlicedAlu& alu, const ChipConfig
 ChipResult simulate_chip(const ChipConfig& cfg, Rng& rng) {
     ChipResult res;
     SlicedRegFile      rf(cfg.rf_spares);
-    DefectiveSlicedAlu alu(64, cfg.k, cfg.alu_spares, rng.next());
+    DefectiveSlicedAlu alu(64, cfg.k, cfg.alu_spares, rng.next(), cfg.alu_single_unit);
     rf.seed_defects(rng.next());
     const double die = (cfg.share_die && cfg.cluster_alpha > 0.0) ? draw_multiplier(rng, cfg.cluster_alpha) : -1.0;
     inject_regfile_defects(rf, cfg, rng, res, die);   // register file first, as before

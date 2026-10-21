@@ -28,6 +28,10 @@ struct ChipConfig {
     // n > 1 restricts each spare to the register-file region (1/n of the primaries) it sits in.
     unsigned spare_domains = 1;
     unsigned rf_copies     = 1;       // register-file copies that must all be repaired (3 for TMR)
+
+    // ALU organisation (G10): false = one unit per slice position (M2/M3); true = one K-bit unit
+    // reused for every position, plus alu_spares spare units.
+    bool     alu_single_unit = false;
 };
 
 struct ChipResult {

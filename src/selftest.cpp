@@ -72,7 +72,7 @@ RepairReport alu_self_test(DefectiveSlicedAlu& alu, unsigned rounds) {
     };
 
     const unsigned total = alu.physical_units();
-    const unsigned need  = alu.num_slices();
+    const unsigned need  = alu.single_unit() ? 1 : alu.num_slices();   // one reused unit, or one per position
     std::vector<bool> bad(total, false);
     for (unsigned r = 0; r < rounds; ++r)
         for (unsigned u = 0; u < total; ++u)
@@ -95,6 +95,11 @@ RepairReport alu_self_test(DefectiveSlicedAlu& alu, unsigned rounds) {
     }
     if (good.size() < need) {
         rep.ok = false;
+        return rep;
+    }
+    if (alu.single_unit()) {
+        for (unsigned i = 0; i < alu.num_slices(); ++i) alu.set_mapping(i, good[0]);   // every position -> the good unit
+        if (good[0] != 0) ++rep.remapped;
         return rep;
     }
     for (unsigned i = 0; i < need; ++i) {

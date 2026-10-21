@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "radslice/chip_sim.hpp"
+#include "radslice/defective_alu.hpp"
 #include "radslice/selftest.hpp"
 #include "test_util.hpp"
 
@@ -42,6 +43,17 @@ void check_rf_yield(const char* what, const ChipConfig& cfg, double exact, u64 s
     Rng rng(seed);
     int ok = 0;
     for (int t = 0; t < n; ++t) ok += simulate_chip(cfg, rng).rf_ok;
+    const double est = static_cast<double>(ok) / n;
+    const double sigma = std::sqrt(std::max(exact * (1 - exact), 1e-4) / n);
+    CHECK_MSG(std::fabs(est - exact) < 4.5 * sigma + 1e-3,
+              std::string(what) + ": simulated " + std::to_string(est) + " vs exact " + std::to_string(exact));
+}
+
+// Fraction of simulated chips whose ALU was repaired, against an exact value.
+void check_alu_yield(const char* what, const ChipConfig& cfg, double exact, u64 seed, int n = 20000) {
+    Rng rng(seed);
+    int ok = 0;
+    for (int t = 0; t < n; ++t) ok += simulate_chip(cfg, rng).alu_ok;
     const double est = static_cast<double>(ok) / n;
     const double sigma = std::sqrt(std::max(exact * (1 - exact), 1e-4) / n);
     CHECK_MSG(std::fabs(est - exact) < 4.5 * sigma + 1e-3,
@@ -162,6 +174,41 @@ void test_tmr_copies_and_a_shared_die() {
               "whole chip: " + std::to_string(est) + " vs " + std::to_string(exact));
 }
 
+// One K-bit unit reused for every slice position, plus spare units (G10).
+void test_single_unit_alu() {
+    constexpr AluOp ops[] = {AluOp::Add, AluOp::Sub, AluOp::And, AluOp::Or, AluOp::Xor, AluOp::Sll, AluOp::Srl,
+                             AluOp::Sra, AluOp::Slt, AluOp::Sltu, AluOp::AddW, AluOp::SubW, AluOp::SllW,
+                             AluOp::SrlW, AluOp::SraW};
+    auto matches = [&](DefectiveSlicedAlu& alu, u64 seed) {
+        Rng r(seed);
+        for (int i = 0; i < 6000; ++i) {
+            const u64 a = r.next(), b = r.next();
+            const AluOp op = ops[i % 15];
+            if (alu.exec(op, a, b) != alu_reference(op, a, b)) return false;
+        }
+        return true;
+    };
+    for (unsigned k : {8u, 16u, 32u}) {
+        DefectiveSlicedAlu alu(64, k, 1, 5, true);
+        CHECK(alu.single_unit() && alu.physical_units() == 2);       // one reused unit + one spare
+        SliceDefect d; d.kind = DefectKind::StuckBit; d.bit = 2; d.value = false;
+        alu.set_defect(0, d);
+        CHECK(!matches(alu, 1));                                      // the reused unit is bad, so everything is wrong
+        CHECK(alu_self_test(alu, 1).ok);
+        for (unsigned i = 0; i < alu.num_slices(); ++i) CHECK(alu.mapping(i) == 1);   // every position now uses the spare
+        CHECK(matches(alu, 2));
+        alu.set_defect(1, d);
+        CHECK(!alu_self_test(alu, 1).ok);                             // both units bad: no repair is possible
+    }
+    // Yield: it works if any of the 1 + spares units is good.
+    ChipConfig c = base(160); c.alu_single_unit = true; c.k = 16; c.alu_spares = 1;
+    check_alu_yield("single unit K=16, 1 spare, independent", c, 0.7541, 600);
+    c.cluster_alpha = 4.0; c.alu_spares = 2;
+    check_alu_yield("single unit K=16, 2 spares, die-level alpha=4", c, 0.85, 601);
+    c.k = 8; c.alu_spares = 1;
+    check_alu_yield("single unit K=8, 1 spare, die-level alpha=4", c, 0.9021, 602);
+}
+
 }  // namespace
 
 int main() {
@@ -172,5 +219,6 @@ int main() {
     test_region_restricted_spares();
     test_remap_respects_regions();
     test_tmr_copies_and_a_shared_die();
+    test_single_unit_alu();
     return tu::summary("cluster");
 }
