@@ -101,6 +101,49 @@ def independence_tests(grid: list[str], reps: int = 20000, seed: int = 12345) ->
     )
 
 
+def matrix_positions() -> list[tuple[int, int]]:
+    """(row, column) of each of the 28 matrices on the figure's grid: bands of 4, 4, 6, 6, 4, 4
+    from top to bottom, the 4-wide bands centred on the 6-wide ones. Read off the figure."""
+    pos = []
+    for band, size in enumerate(BAND_SIZES):
+        offset = 1 if size == 4 else 0
+        pos.extend((band, offset + i) for i in range(size))
+    return pos
+
+
+def spatial_autocorrelation(grid: list[str], reps: int = 20000, seed: int = 1) -> dict:
+    """Moran's I of the per-matrix failure counts, neighbours being matrices one grid step apart
+    (diagonals included), with a permutation test.
+
+    This looks for neighbouring matrices having similar failure counts. It cannot see a defect-rate
+    variation common to every matrix on the wafer (wafer- or die-level), which shifts all of them
+    together and leaves no difference between matrices."""
+    counts = [r.count("R") for r in grid]
+    n = len(counts)
+    pos = matrix_positions()
+    nb = [(i, j) for i in range(n) for j in range(n)
+          if i != j and max(abs(pos[i][0] - pos[j][0]), abs(pos[i][1] - pos[j][1])) == 1]
+
+    def morans(v):
+        m = sum(v) / n
+        return (n / len(nb)) * sum((v[i] - m) * (v[j] - m) for i, j in nb) / sum((a - m) ** 2 for a in v)
+
+    obs = morans(counts)
+    rng = random.Random(seed)
+    ge = le = 0
+    for _ in range(reps):
+        y = counts[:]
+        rng.shuffle(y)
+        s = morans(y)
+        ge += s >= obs
+        le += s <= obs
+    mean = sum(counts) / n
+    var = sum((c - mean) ** 2 for c in counts) / (n - 1)
+    cov = sum((counts[i] - mean) * (counts[j] - mean) for i, j in nb) / len(nb)
+    return dict(neighbour_pairs=len(nb), morans_i=obs, expected_i=-1.0 / (n - 1),
+                p_positive=ge / reps, p_negative=le / reps, neighbour_correlation=cov / var)
+
+
 def band_failure_rates(grid: list[str]) -> list[float]:
     out, i = [], 0
     for s in BAND_SIZES:

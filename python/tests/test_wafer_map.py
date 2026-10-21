@@ -35,6 +35,19 @@ class PublishedWaferMap(unittest.TestCase):
         self.assertEqual(t["row0_failed"], 1)
         self.assertLess(t["p_row0_at_most"], 0.01)                      # an unexplained position effect
 
+    def test_matrix_layout(self):
+        pos = wm.matrix_positions()
+        self.assertEqual(len(pos), 28)
+        self.assertEqual(len(set(pos)), 28)
+        self.assertEqual(max(c for _, c in pos), 5)
+
+    def test_no_positive_spatial_autocorrelation_between_neighbouring_matrices(self):
+        t = wm.spatial_autocorrelation(self.grid, reps=3000, seed=1)
+        self.assertEqual(t["neighbour_pairs"], 164)
+        self.assertLess(t["morans_i"], 0.0)                 # if anything, neighbours differ more than chance
+        self.assertGreater(t["p_positive"], 0.3)            # no evidence of clustering between neighbours
+        self.assertLess(abs(t["neighbour_correlation"]), 0.3)
+
     def test_sourced_parameters_agree_with_the_map(self):
         from radslice.params import load_params
         p = load_params()
