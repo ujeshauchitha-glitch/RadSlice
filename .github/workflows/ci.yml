@@ -50,3 +50,4 @@ jobs:
       - run: cmake -S . -B build && cmake --build build -j --target radslice_yield
       - run: python scripts/m3_yield.py --trials 5000 --out build/m3-ci
       - run: python scripts/cluster_study.py --trials 4000 --out build/cluster-ci
+      - run: python scripts/crossbar_study.py --out build/crossbar-ci

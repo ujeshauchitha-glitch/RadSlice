@@ -62,3 +62,9 @@ Clustered defects (G9; needs `radslice_yield`, about 35 s):
 ```bash
 python scripts/cluster_study.py
 ```
+
+Spare-routing cost and the K trade-off (G10; exact models, about 20 s):
+
+```bash
+python scripts/crossbar_study.py
+```
