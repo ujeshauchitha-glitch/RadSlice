@@ -6,12 +6,13 @@ hand (a test fails if this file drifts from the parameters).
 Tiers: **A** published measurement (source given), **B** calibrated model (source given),
 **C** hypothetical. A simulation that uses any tier-C value is a what-if, not a measurement.
 
-**29 parameters: 5 tier A, 2 tier B, 22 tier C.**
+**34 parameters: 5 tier A, 3 tier B, 26 tier C.**
 
-7 parameters have a source: `yield.implied_per_transistor`, `yield.measured_64bit_register`, `yield.measured_8bit_shift_register`, `yield.measured_8bit_shift_register_from_map`, `yield.measured_inverter`, `yield.measured_transistor`, `yield.p_slice_good`. All come from one paper (Ao, Zhou et al., Nature 640, 654-661, 2025: main text and Supplementary Fig. 7) and are all about yield. Every other parameter, including every upset rate, is tier C, and every result in `docs/results.md` is still conditional on those.
+8 parameters have a source: `yield.cluster_alpha_min_matrix_scale`, `yield.implied_per_transistor`, `yield.measured_64bit_register`, `yield.measured_8bit_shift_register`, `yield.measured_8bit_shift_register_from_map`, `yield.measured_inverter`, `yield.measured_transistor`, `yield.p_slice_good`. All come from one paper (Ao, Zhou et al., Nature 640, 654-661, 2025: main text and Supplementary Fig. 7) and are all about yield. Every other parameter, including every upset rate, is tier C, and every result in `docs/results.md` is still conditional on those.
 
 | sourced parameter | source |
 |---|---|
+| `yield.cluster_alpha_min_matrix_scale` | Derived from the Supplementary Fig. 7 wafer map (28 matrices of 8 registers) by a one-sided likelihood-ratio test, python/radslice/cluster_model.py |
 | `yield.implied_per_transistor` | Derived: 0.71 over 144 transistors; the 64-bit figure (~7% over 1,152) gives 0.99769 |
 | `yield.measured_64bit_register` | Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 659 |
 | `yield.measured_8bit_shift_register` | Ao, Zhou et al., Nature 640, 654-661 (2025), main text p. 659 and Supplementary Fig. 7(c) |
@@ -29,6 +30,9 @@ Tiers: **A** published measurement (source given), **B** calibrated model (sourc
 | `cycles.w_form_sign_extension_beats` | 0 | beats | C | Sign-extending a W-form result into the upper slices is done by the write-back path and costs no ALU beat. If it costs one, every W op gets +1. |
 | `defects.activation` | 1.0 | probability | C | Probability a defect shows on one access. 1.0 = hard defect (always). Values below 1 model weak/intermittent defects and are swept in the weak-defect experiment. |
 | `defects.alu_unit_good_probability` | p_slice_good ** (K / 8) | probability | C | An ALU slice of K bits has the same defect density per bit as an 8-bit register slice. The 0.71 figure is for a register slice, not for logic; applying it to ALU logic is an assumption. |
+| `defects.cluster_alpha_sweep` | independent, 50, 20, 9.4, 4, 1 | gamma shape | C | Clustering strengths swept. 50 down to 9.4 span what the wafer map allows at matrix scale; 4 and 1 are stress tests beyond what it allows there, and are hypothetical. |
+| `defects.cluster_scale` | blocks of 32 slices, or die-level (one rate for the whole register file) | slices | C | Scales at which a defect-rate multiplier is shared. Die-level is the one the wafer map cannot test and the one that matters most for the spare count. |
+| `defects.clustering_model` | gamma-mixed block multipliers; marginal slice yield fixed at p | model | C | Each block of slices draws a defect-rate multiplier ~ Gamma(alpha, mean 1); given it, slices fail independently with probability 1 - exp(-lam * m), with lam chosen so the marginal slice yield is exactly p. |
 | `defects.fault_model` | one stuck output bit or stuck carry per defective slice | model | C | The simplest fault a test can be wrong about. Real MoS2 defects are richer (and may cluster); nothing here is calibrated to any device. |
 | `fault.alu_upset_sweep` | 5e-7, 2e-6, 8e-6 | 1/(output bit*beat) | C | ALU upset rates swept in M4: each slice-unit output bit (K data bits and the carry) is flipped with this probability per beat, at most one flip per operation. |
 | `fault.model` | independent single-bit flips, Poisson in time | model | C | Register file: one Poisson process over every exposed stored bit (data bits of x1..x31 in every copy, and the parity bit where the scheme has one). ALU: independent per slice-unit call. |
@@ -43,6 +47,8 @@ Tiers: **A** published measurement (source given), **B** calibrated model (sourc
 | `run.hang_budget` | 3 x golden instructions + 1000 | instructions | C | A run that has not finished within this many instructions is a hang. |
 | `selftest.rounds` | 1 | rounds | C | Boot self-test repetitions. One round is enough for hard defects and far from enough for weak ones (see docs/results.md, M3). Test time and its cost are not modelled. |
 | `spares.crossbar` | ideal: any spare serves any slice | model | C | The remap table, its multiplexers and the self-test logic are assumed fault-free and free. Every yield figure is therefore an upper bound. |
+| `spares.regions` | 1, 2, 4, 8, 16, 32 regions | regions | C | Reach of a spare: 1 is the ideal pool (any spare serves any slice); n restricts each spare to 1/n of the register file; 32 is one region per register (private spares). |
+| `yield.cluster_alpha_min_matrix_scale` | 9.37 | gamma shape | B | The strongest clustering (smallest gamma shape alpha) that the wafer map does not reject at about 95%: failures inside an 8-register matrix have pairwise correlation of at most about 0.03. It constrains differences BETWEEN matrices only. |
 | `yield.implied_per_transistor` | 0.99762 | probability | B | Per-transistor yield that independent failures would need to produce the register yields: 0.71 ** (1/144). The two register yields (8-bit and 64-bit) imply the same value, so yield falls with transistor count as independent failures predict. |
 | `yield.measured_64bit_register` | 0.07 | probability | A | "approximately 7% for a 64-bit register with 1,152 transistors". The authors round it; the independent scaling of the 8-bit figure gives 0.71 ** 8 = 0.0646. 1,152 is 8 times 144. |
 | `yield.measured_8bit_shift_register` | 0.71 | probability | A | Main text: "The yield of 8-bit registers, each with 144 transistors, reached 71% at the wafer scale." (The supplementary caption says "can reach 71%".) 224 registers on a 4-inch wafer. |

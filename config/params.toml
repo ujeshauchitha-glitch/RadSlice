@@ -260,3 +260,46 @@ value = "3 x golden instructions + 1000"
 tier = "C"
 unit = "instructions"
 note = "A run that has not finished within this many instructions is a hang."
+
+# --- Clustered defects (used by the G9 study) ----------------------------
+
+[yield.cluster_alpha_min_matrix_scale]
+value = 9.37
+tier = "B"
+unit = "gamma shape"
+source = "Derived from the Supplementary Fig. 7 wafer map (28 matrices of 8 registers) by a one-sided likelihood-ratio test, python/radslice/cluster_model.py"
+note = """The strongest clustering (smallest gamma shape alpha) that the wafer map does not reject at
+about 95%: failures inside an 8-register matrix have pairwise correlation of at most about 0.03.
+It constrains differences BETWEEN matrices only. A defect rate common to every matrix on the wafer
+(wafer-, batch- or die-level variation) leaves no difference between matrices, so it is NOT constrained
+by one wafer."""
+
+[defects.clustering_model]
+value = "gamma-mixed block multipliers; marginal slice yield fixed at p"
+tier = "C"
+unit = "model"
+note = """Each block of slices draws a defect-rate multiplier ~ Gamma(alpha, mean 1); given it, slices
+fail independently with probability 1 - exp(-lam * m), with lam chosen so the marginal slice yield is
+exactly p. alpha small = strong clustering; alpha large = independence. Blocks are independent. No
+spatial gradient across the wafer, and no clustering of transient upsets."""
+
+[defects.cluster_alpha_sweep]
+value = "independent, 50, 20, 9.4, 4, 1"
+tier = "C"
+unit = "gamma shape"
+note = """Clustering strengths swept. 50 down to 9.4 span what the wafer map allows at matrix scale;
+4 and 1 are stress tests beyond what it allows there, and are hypothetical."""
+
+[defects.cluster_scale]
+value = "blocks of 32 slices, or die-level (one rate for the whole register file)"
+tier = "C"
+unit = "slices"
+note = """Scales at which a defect-rate multiplier is shared. Die-level is the one the wafer map
+cannot test and the one that matters most for the spare count."""
+
+[spares.regions]
+value = "1, 2, 4, 8, 16, 32 regions"
+tier = "C"
+unit = "regions"
+note = """Reach of a spare: 1 is the ideal pool (any spare serves any slice); n restricts each spare
+to 1/n of the register file; 32 is one region per register (private spares)."""

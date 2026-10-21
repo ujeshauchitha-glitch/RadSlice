@@ -161,6 +161,14 @@ class ReferenceValuesUsedByTheCppTests(unittest.TestCase):
 
 
 class WhatTheWaferMapAllows(unittest.TestCase):
+    def test_the_parameter_matches_the_computed_bound(self):
+        from radslice.params import load_params
+        from radslice.wafer_map import load_grid
+        counts = [r.count("R") for r in load_grid()]
+        p_good = 1 - sum(counts) / (8 * len(counts))
+        self.assertAlmostEqual(load_params()["yield.cluster_alpha_min_matrix_scale"].value,
+                               cm.alpha_lower_bound(counts, 8, p_good), places=2)
+
     def test_the_published_map_bounds_clustering_at_matrix_scale(self):
         from radslice.wafer_map import load_grid
         counts = [r.count("R") for r in load_grid()]

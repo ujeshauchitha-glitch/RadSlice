@@ -55,7 +55,7 @@ class Params(unittest.TestCase):
         self.assertEqual(sourced, {"yield.measured_8bit_shift_register",
                                    "yield.measured_8bit_shift_register_from_map",
                                    "yield.measured_64bit_register", "yield.measured_transistor",
-                                   "yield.measured_inverter",
+                                   "yield.measured_inverter", "yield.cluster_alpha_min_matrix_scale",
                                    "yield.p_slice_good", "yield.implied_per_transistor"})
 
     def test_yield_param_matches_test_constant(self):
