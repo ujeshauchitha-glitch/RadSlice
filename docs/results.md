@@ -9,9 +9,10 @@ failures are recorded here, not deleted.
 Read this first; the milestone sections below it hold the evidence.
 
 **Status of the evidence.** Everything here is simulation. The register file and ALU are models
-beneath an unmodified golden RV64IMAFDC emulator. Of the 34 parameters in `config/params.toml`, 26
-are tier C (hypothetical). The eight sourced ones (5 tier A, 3 tier B) are all about yield and all from
-one paper (one of them, a bound on clustering, is derived from its wafer map): `p = 0.71` for an 8-bit register slice was an unverified secondary figure when M0 to M5
+beneath an unmodified golden RV64IMAFDC emulator. Of the 46 parameters in `config/params.toml`, 33
+are tier C (hypothetical). The thirteen sourced ones (8 tier A, 5 tier B) are all from one paper: eight
+about yield (one of them, a bound on clustering, derived from its wafer map) and five transistor counts
+used by the cost model (G10): `p = 0.71` for an 8-bit register slice was an unverified secondary figure when M0 to M5
 were done, and was afterwards checked against the paper's main text and Supplementary Information
 (section "Checking p against the primary source" below). It was confirmed, and so was the 64-bit
 figure (about 7%). Every upset rate and every cost-model choice is still tier C. See
@@ -26,17 +27,18 @@ project contributes is a combined, simulated study of them on a slice-serial RV6
 | # | Conclusion | Evidence | Rests on | Would be overturned by |
 |---|---|---|---|---|
 | C1 | Yield collapses with width: a 64-bit register (8 byte slices) with no spares yields 0.71^8 = 0.0646. The paper measured about 7% for a 64-bit (1,152-transistor) register; its 8-bit and 64-bit yields imply the same per-transistor yield, as independent failures predict. | M0 closed form; M3 simulation; the paper's main text and wafer map | independent slice defects at p = 0.71 (calibrated to the paper; a measured shift-register block, not a random-access register-file slice) | clustering above register scale (none seen on the one wafer map; one unexplained ordering pattern in a small inverter dataset), or a register-file slice yielding unlike the measured shift register |
-| C2 | A shared spare pool beats per-register spares at equal spare count: whole-file yield 0.97 (128 spares, 1.5x slices) against about 0.0001 for 4 private spares per register. It still wins under every clustering tested, but 0.97 is a best case (see C12). | M0, M3, G9 | an ideal crossbar (any spare serves any slice); fault-free remap logic; no die-to-die variation of the defect rate (one wafer cannot test it) | spare reach limited to regions (8 regions: 0.16 at 128 spares even with independent defects); die-to-die variation (99% then needs about 2x slices); a crossbar cost that erases the gain |
+| C2 | A shared spare pool beats per-register spares at equal spare count: whole-file yield 0.97 (128 spares, 1.5x slices) against about 0.0001 for 4 private spares per register. It still wins under every clustering tested, but 0.97 is a best case (see C12). | M0, M3, G9 | an ideal crossbar (any spare serves any slice); fault-free remap logic; no die-to-die variation of the defect rate (one wafer cannot test it) | spare reach limited to regions (8 regions: 0.16 at 128 spares even with independent defects); die-to-die variation (99% then needs about 2x slices); a crossbar cost that erases the gain (costed in G10: it does not erase it, but the best design is not the ideal pool; see C13) |
 | C3 | A bit-sliced RV64I ALU (K = 8, 16, 32) and byte-sliced register file are functionally exact with zero faults. | M2: 119.5M ALU checks against an independent reference (exhaustive at 8 bits, dense at 16 and 64), lockstep on random programs, rv64ui + rv64mi 65/65 at every K; deliberate bugs caught | the reference and the scope (data ops; PC adders, M/A/F/D and CSRs stay plain) | a single operand pair that differs; 64-bit exhaustiveness is not claimed |
 | C4 | Slice-serial execution costs cycles in proportion to slice count: about 4.2x, 2.4x, 1.4x for K = 8, 16, 32 on a compute loop (base cost 1), less as the non-ALU cost grows. | M2 analytical model | four tier-C cost choices (non-ALU cost, one beat per slice op regardless of K, free W-form sign extension, wide enough register port) | a cycle-accurate model showing wider slices are slower per beat, which narrows the gap |
 | C5 | A boot self-test plus remap recovers yield to the closed form: 65 simulated points agree within Monte Carlo error (largest abs z 2.59); repaired chips pass the riscv-tests, unrepaired ones fail them. | M3 | the one-stuck-bit defect model; fault-free test logic; independent defects for the closed-form agreement (with clustering, the exact clustered model and the simulator agree on 23 further cases, though the yield itself is lower) | defects the test cannot see (delay, bridging, multi-bit, defects in the remap/test logic) |
-| C6 | Finer ALU slices need far less spare area for the same yield (99% needs about 2.1x, 4x, 12x ALU area at K = 8, 16, 32), but cost more cycles (C4). Neither wins outright. | M3 closed form + simulation; M2; G9 (ordering unchanged by clustering, areas grow) | p^(K/8) scaling of an ALU slice from a register-slice figure (area-proportional scaling is supported for register-like circuits by the paper's 8-bit and 64-bit yields; ALU logic itself is not measured); ideal crossbar | logic with a different defect density per bit; a crossbar whose cost grows fast with slice count |
+| C6 | Finer ALU slices need far less spare area for the same yield (99% needs about 2.1x, 4x, 12x ALU area at K = 8, 16, 32), but cost more cycles (C4). Neither wins outright. | M3 closed form + simulation; M2; G9 (ordering unchanged by clustering, areas grow) | p^(K/8) scaling of an ALU slice from a register-slice figure (area-proportional scaling is supported for register-like circuits by the paper's 8-bit and 64-bit yields; ALU logic itself is not measured); ideal crossbar | logic with a different defect density per bit; a crossbar whose cost grows fast with slice count (G10: the ALU areas quoted are for the replicated organisation; see C13) |
 | C7 | Weak (intermittent) defects escape a short self-test: with q = 0.1, one round passes 99.9% of chips and every one still has a defective slice in use; yield falls to 80.8% only after 64 rounds. | M3 | single-bit weak-defect model | real defects that are either always visible or never |
 | C8 | Parity with a second copy, or TMR, plus ALU re-execution, remove silent corruption and hangs in this model at every rate swept, at a cost in storage (2x, 3x), ALU cycles (1.7x DWC, 2.5x TMR), a fail-stop failure mode, and yield. | M4: 180 cells x 2000 runs, reproduced exactly on re-run | independent single-bit upsets; fault-free vote/compare/parity logic; PC, memory, CSRs and control FSM not injected | multi-bit or clustered upsets; upsets in the protection logic or the unmodelled state; a persistent ALU upset |
 | C9 | Scrubbing helps schemes that can correct and hurts parity-only (it halts the machine on upsets in registers never read again). | M4 | same as C8 | a scrub policy that only acts on registers about to be read |
 | C10 | Protecting only one side barely helps when both are upset, and can raise silent corruption by letting runs survive to be corrupted by the other side. Only register-file TMR + ALU DWC + scrub succeeded in every run. | M4 | same as C8 | rates where one side dominates by orders of magnitude |
 | C11 | Protection lowers manufacturing yield: TMR needs three repaired register files (boot failure 3.5% to 8.8% at 128 spares per copy; 25.9% to 57.9% at 112). If the copies share a die-level defect rate the cost is larger, not smaller (6.4 points rather than 0.2 at 144 spares per copy, alpha = 9.4). | M4 vs M3 closed form; G9 | defects independent per copy (otherwise see G9) | spares shared between copies |
 | C12 | The shared-pool spare requirement is robust to clustering at the scales one wafer map can test (within a matrix, between neighbours) but not to die- or wafer-level variation of the defect rate, which it cannot test: at the strength the map allows between matrices (pairwise correlation about 0.03), a rate shared across the register file raises the spares for 99% yield from 134 to 248 (1.52x to 1.97x slices); the same strength in blocks of 32 slices raises it only to 147. | G9: exact model; the C++ simulator agrees on 23 cases (largest abs z 2.35) | gamma-mixed block model with the marginal yield held at p; ideal crossbar | measured die-to-die or wafer-to-wafer yield variation, which would fix the scale and strength |
+| C13 | Costing the spare-routing crossbar changes the best register-file design and the K trade-off. Tagged routing costs about 10.8x the storage of the spares it serves; the cheapest silicon per working register file is 8 regions with 192 spares (4.21x the bare file per good file, against 7.11 for the 128-spare ideal pool and 1.54 if the crossbar were free). At chip level the register file is about 90% of the silicon, so ALU width moves silicon by at most 13% and speed decides: the widest sliced K (32) wins silicon x cycles, with 32 and 64 within 5% for a replicated ALU. A single reused ALU unit needs far less silicon than the replicated organisation that M2 and M3 modelled, at the same cycle count. The routing's own transistors are treated as fault-free; if any failure there were fatal, no spare design would yield (5.5e-83 for the cheapest). | G10: exact models, transistor-count cost model with five paper-anchored or derived constants | transistor count as area; tagged-array steering as the design; fault-free routing | a cheaper or wire-dominated routing layout; routing with its own defect tolerance (would make the numbers attainable); an ALU 16x an adder (single unit then prefers K = 16) |
 
 ### The research question, answered as far as it can be
 The gap (G6) asked whether a 2D-specific fault model, combined with yield sparing and transient-fault
@@ -52,15 +54,16 @@ at the swept rates, but whether those rates are realistic is exactly what is unk
 | Gap | Status |
 |---|---|
 | G1 yield collapses with width | supported (C1): the paper's main text reports 71% for 8-bit and about 7% for 64-bit registers, which agree with each other under independent failures; the one wafer map shows no clustering; how "working" was decided and any chip-level yield are not reported |
-| G2 shared pool vs private spares | supported in-model (C2); crossbar cost not modelled |
+| G2 shared pool vs private spares | supported in-model (C2); costed in G10: the ideal pool is not the cheapest design (C13) |
 | G3 sliced datapath is correct | supported (C3) |
 | G4 cost of slice-serial execution | estimated, model-dependent (C4) |
 | G5 self-test and remap | supported for hard defects (C5); weak defects escape (C7) |
-| G5a granularity and spare area | supported on yield (C6); mux cost unknown |
+| G5a granularity and spare area | supported on yield (C6); costed in G10: at chip level speed, not silicon, decides K (C13) |
 | G6 combined yield + radiation on a slice-serial core | structure answered; the 2D-specific part is not answerable without data |
 | G7 fair baseline | the hybrid case was run (the ALU-only campaign), but no head-to-head cost comparison (area, register-file yield) was made, so G7's falsifier (the hybrid wins on every metric) is neither confirmed nor ruled out |
 | G8 protection reduces corruption, at what cost | supported in-model (C8 to C11), with the failure mode and yield cost found |
 | G9 yield conclusions under clustered defects | four of five claims confirmed, one (TMR's penalty shrinking) not supported; the result depends on a scale (die-level variation) that one wafer cannot test (C12) |
+| G10 crossbar cost and the K trade-off | claims 1 and 2 confirmed, 3 partly, 4 mostly robust; the routing's own defects are not modelled and could remove the benefit (C13) |
 
 ### Rejected ideas, failures and corrections (collected)
 - Counting W-form sign extension as an extra beat: rejected for lack of a source; kept as a tier-C
@@ -97,7 +100,8 @@ transient upsets.
    yield, anything on radiation) cannot be resolved from it.
 2. (Done, see G9.) What remains is the one thing it showed matters: how much the defect rate varies
    from die to die and wafer to wafer. That needs per-wafer yields, and the paper reports one wafer.
-3. Put a cost on the spare-routing crossbar and on the vote/compare logic, and redo the K trade-off (C4 vs C6).
+3. (Crossbar and K trade-off done, see G10.) Still open: the vote/compare logic's cost, and above all the
+   routing's own defects, which G10 treats as fault-free although it is tens of thousands of transistors (C13).
 4. Inject the PC, memory, CSRs and the control FSM, and multi-bit upsets.
 5. Replace the analytical cycle model with a cycle-accurate one for at least one K.
 
@@ -112,6 +116,7 @@ python scripts/m2_cycles.py                        # model-estimate cycle overhe
 python scripts/m3_yield.py                         # about 25 s: yield vs spares, weak defects
 python scripts/m4_campaign.py                      # roughly 10 to 15 min on 14 cores: 180 cells x 2000 runs
 python scripts/cluster_study.py                    # about 35 s: clustered defects (G9), simulator vs exact model
+python scripts/crossbar_study.py                   # about 20 s: crossbar cost and the K trade-off (G10)
 ```
 At the commit this section was written, the six C++ test suites, the sixteen Python tests and rv64ui
 + rv64mi (65/65 at K = 8, 16 and 32) all passed locally on Windows with MinGW. The GitHub Actions
@@ -330,6 +335,84 @@ reproduces every number here (about 35 s); the tables are in `results/cluster_st
   (per-wafer yields from the fabricating group would do).
 - A spare-routing crossbar with a reach and cost different from both extremes studied.
 - Defect correlation that decays with distance in a way these block models represent badly.
+
+## G10: what the spare-routing crossbar costs (done after G9)
+
+`python scripts/crossbar_study.py` (about 20 s, exact models, no simulation) writes
+`results/crossbar_study.{csv,md,svg}`. It costs the routing that lets a spare stand in for a bad slice, in
+transistors, with every published anchor from the Nature paper (144 T per 8-bit register block, 27 T per
+1-bit adder with control, 27 T per four-input selection module) and every other choice a tier-C knob
+(`config/params.toml`, `[cost.*]`; `python/radslice/cost_model.py`, 17 tests). p = 0.71 throughout.
+Transistor count stands in for area; wiring and layout are not counted, so every cost below is more likely
+too low than too high.
+
+**What is costed.** Two ways to steer a spare into the register file. *Tagged*: spares sit in a side array,
+each holding a tag naming the slice it replaces, every access is compared against all tags, and the output
+lane multiplexers gain one input per spare that reaches the lane. *Per-position*: every one of the 256 slice
+positions has its own multiplexer over the spares in reach, the naive crossbar; an upper bound. Spare *reach*
+is the number of regions (1 = the ideal pool). For the ALU, two organisations, because M2 and M3 modelled
+one of them and I had not said so: *replicated* (one physical unit per slice position, 64/K of them, plus
+spares) and *single* (one K-bit unit reused for all 64/K positions, plus spares; this is what the fabricated
+chip does at K = 1). The beat model is the same for both, so in this model the replicated organisation
+costs more silicon for no gain in cycles.
+
+### Verdicts on the four claims
+
+| # | Claim | Verdict | Numbers |
+|---|---|---|---|
+| 1 | The ideal crossbar costs more than the slices it protects | **Confirmed, by a large factor** | Tagged routing is about 10.8x the storage of the spares it serves: 128 spares in one pool add 0.50 of a bare register file in storage and 5.41 in routing. Per-position routing for the same pool is 128x the bare file. |
+| 2 | The cheapest design is not 128 spares in an ideal pool | **Confirmed** | Independent defects, tagged routing: the cheapest silicon per working file is **8 regions, 192 spares** (yield 0.929, silicon 3.91x the bare file, **4.21** per good file), against **7.11** for the 128-spare ideal pool and 1.54 if the crossbar were free. The crossbar multiplies the cost per good file by 2.7x at the optimum and 4.6x at the ideal pool. The optimum is broad: 4 regions 4.50, 16 regions 4.83. With per-position steering it moves to 32 regions (14.18). Reaching 99% yield: 8 regions, 224 spares, 4.43. With die-level clustering (alpha = 9.4): 8 regions, 224 spares, 5.10 against 9.44 for the pool; 99% needs 352 spares, 6.39. No sparing yields 8e-39. |
+| 3 | The ordering of K changes once routing is costed | **Partly: the ordering by yield does not matter much; speed decides** | The register file is about 90% of chip silicon, so ALU width and organisation move the chip's silicon little: a single unit goes from 4.21 (K = 1) to 4.74 (K = 32), +13%; the replicated ALU is cheapest at K = 8 (4.86) and 5.29 to 5.40 at K = 1 and 32. Silicon times cycles is then decided by cycles: the widest sliced K (32) wins, K = 1 costs 14x more (alu_mix, base 2). K = 64, the unsliced ALU, needs 29 spare 64-bit units and costs 7.13 (+50% over the single unit at K = 32), so full width loses on silicon. |
+| 4 | Conclusions depend on which tier-C assumption | **Mostly robust, with named exceptions (below)** | |
+
+### Where the answers move (E4: one knob at a time)
+- The register-file optimum stays at **8 regions, 192 to 200 spares** under every knob except the
+  per-position topology (32 regions, 320 spares). Cost per good file ranges 3.30 (free tag compare) to 6.63
+  (4x multiplexer cost) for the tagged design, 14.18 for per-position; never below 3.3, i.e. at least 2x the
+  1.54 that a free crossbar would predict.
+- K* by silicon x cycles is 32 for most settings. It becomes **64 for the replicated ALU** when multiplexers
+  cost 2x or more, with the tag compare at 27 T, with 60,000 T of other silicon, with base = 1, or with
+  per-position steering: the 32-to-64 difference is only 3% to 5% at the default (1.03 to 1.05 against 1.00), so "32 or 64" is the honest answer. It
+  becomes **16 for the single-unit ALU** only if an ALU unit is 16x an adder (4x does not move it).
+- The share of chip silicon in the ALU is 4% to 18% at the single-unit K*.
+
+### E5: the routing is made of transistors, and this study still treats it as fault-free
+The remap logic, tag table and multiplexers are transistors with the same defect rate as any other. With the
+per-transistor yield implied by the register measurements (0.99762, tier B), a block of just 291 transistors
+that must be perfect already fails half the time; with the isolated-device figure (0.9992, tier A), 866. The
+cheapest register-file design above has 79,488 routing transistors (the ideal pool 199,296). If any single
+failure there were fatal the chance they all work would be 5.5e-83 (2.4e-28 at the isolated-device rate).
+The single-unit ALU's routing, 324 transistors at K = 8 with 4 spares, would survive 46% of the time.
+So the cost-per-good numbers above are **lower bounds that assume routing that cannot fail**. A real design
+needs defect tolerance in the routing itself (its own spares, or logic that degrades gracefully), and that is
+not modelled; it is the largest open item from this study, and it applies to M3's remap logic as well.
+
+### What this changes
+- **C2** stays true as an in-model ordering (shared pool beats private spares) but 0.97 yield at 128 spares
+  for 1.5x the slices is not a design: costed, the pool is 6.9x the bare file, and a limited-reach design is
+  cheaper per good file.
+- **C6**: the areas "2.1x / 4x / 12x ALU area at K = 8 / 16 / 32" are for the replicated organisation. For a
+  single reused unit the joint chip optimum uses 4, 6 and 12 spare units at K = 8, 16, 32 (ALU yield 0.998,
+  0.993, 0.978), which is 1,404, 3,942 and 14,796 transistors of ALU in all; at chip level the ALU is the
+  smaller part of the cost.
+- The M2 beat model gives the replicated organisation no speed advantage, so in this model it is dominated
+  by the single unit. M2/M3 modelled the replicated one; that choice was an interpretation, not stated as one.
+
+### Mistakes made on the way (kept)
+- A first prototype optimised the ALU's spares on its own, minimising ALU silicon per good ALU. It picked no
+  spares at K = 8 with 6.5% ALU yield, because a bad ALU also wastes the register file. The metric is silicon
+  per good *chip*, optimising register file and ALU jointly; the prototype is not in the repository.
+- A first register-file topology put a multiplexer at every slice position; that is the *per-position* upper
+  bound above, 3x to 20x more expensive per good file than the tagged design that I should have started from.
+- The search stops at 420 spares (360 under clustering); the 64-region rows hit that cap and are not minima.
+
+### What would falsify this
+- A routing layout whose cost is far below transistor-count-times-multiplexer (or a steering scheme cheaper
+  than the tagged array): the optimum would move toward the ideal pool.
+- Wire-dominated routing, which would raise every cost here and push the optimum toward finer regions.
+- An ALU that is much larger than an adder (16x) with a single unit: K* moves to 16.
+- Routing that cannot be made defect-tolerant at modest cost: no spare design would then work at this
+  per-transistor yield, and the register file would need a different approach altogether.
 
 ## M0: closed-form yield model
 
