@@ -181,6 +181,38 @@ clustering: at the strength the wafer map allows between matrices, die-level var
 spares for 99% yield from 134 to 248, block-level clustering only to 147, and one wafer cannot test
 die-level variation. The simulator and the exact model agree on 23 cases.
 
+## G10. What does the spare-routing crossbar cost, and does sparing still pay?
+Every yield result so far (C2, C6, C12) assumed an ideal crossbar: any spare can replace any slice, at
+no cost. That was flagged as the biggest unmodelled cost on the yield side. A spare is useless unless
+a multiplexer can route it into the place of a bad slice, and the multiplexer is silicon too.
+**Claims to test.**
+1. At the published block sizes the multiplexing needed for an ideal crossbar costs more silicon than
+   the slices it protects, by a large factor.
+2. Once that is costed, the best register-file design is not "128 spares in an ideal pool": it is a
+   smaller number of spares with limited reach, or possibly no sparing at all. The study finds the
+   design with the lowest silicon per good register file and compares it with no spares.
+3. The K comparison (C6, C4) changes once the ALU's routing is costed: finer slices have more
+   positions and so more routing. The ordering of K by silicon per good ALU, and by silicon times
+   cycles, is recomputed, including K = 1, 2 and 4 (the fabricated chip has a 1-bit ALU, K = 1).
+4. Which tier-C cost assumptions the answers depend on, and where each flips the conclusion.
+**Answered by.** A transistor-count cost model anchored on the paper's published block sizes (144
+transistors per 8-bit register block, 27 for a 4-input selection module, 27 for a 1-bit adder with
+control), the exact yield models of G9, and the M2 cycle model; swept over the uncertain choices.
+**Wrong if.**
+- the ideal crossbar turns out cheap relative to storage (claim 1 false, C2 unaffected);
+- the cost-optimal design is still the large ideal pool (claim 2 false);
+- the ordering of K does not change and is insensitive to every assumption (claim 3 is then a
+  non-result, which would be recorded as such);
+- the conclusions depend on one cost assumption in a way that makes them unusable (claim 4), in which
+  case the honest answer is a range, not a number.
+**Assumptions (tier C unless a published anchor is named).** Transistor count stands in for silicon
+area, so wiring, vias and layout are ignored; a crossbar is wire-dominated, so this is likely to
+UNDERSTATE its cost. A multiplexer of m inputs costs 9(m-1) transistors, derived from the published
+27-transistor 4-input module (three 2-input multiplexers' worth). One mux per data bit per slice
+position, no extra for read and write ports (swept). The cost of the remap table and of the
+self-test logic is a swept tier-C parameter. Silicon outside the register file and the ALU is
+ignored, so "relative cost" is for the parts that sparing affects.
+
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with
 MoS2 logic is needed to avoid overstating the benefit.
