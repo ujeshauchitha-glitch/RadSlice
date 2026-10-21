@@ -143,6 +143,39 @@ cycles, except that re-executing ALU operations really costs 2x or 3x the beats.
 (2x and 3x), the added failure mode of fail-stop, and, once defects are combined, the
 lower manufacturing yield of a design that needs several repaired register files.
 
+## G9. Do the yield conclusions survive clustered defects?
+Conclusions C1, C2, C5, C6 and C11 were all derived with defects falling independently on slices.
+Real defects often cluster: the defect density varies from die to die, or from region to region
+within a die. The study holds the **marginal** slice yield fixed at p (so average defect density
+is unchanged, and any change is due to correlation alone) and varies how strongly, and at what
+scale, slice failures are correlated.
+**Claims to test.**
+1. With clustering, the yield-versus-spares curve flattens (heavier tail of bad-slice counts), so a
+   high yield target (99%) needs more spares than independence says, while a low target needs
+   fewer. How much more, as a function of clustering strength?
+2. A shared spare pool still beats per-register spares (C2).
+3. A spare pool whose reach is limited to a region (the realistic case for spare routing) loses
+   more under clustering than an ideal pool, because a cluster can exhaust the local spares; the
+   loss depends on how the cluster size compares with the region size.
+4. Finer ALU slices still need less spare area than coarser ones for the same yield (C6).
+5. TMR's yield penalty (C11) shrinks if the three register-file copies share a die-level defect
+   density, because their failures become positively correlated.
+**Answered by.** A gamma-mixed defect model (the standard negative-binomial yield model, generalised
+to blocks), computed exactly by convolution in Python, and simulated with the real self-test and
+remap in C++, each checked against the other. The one published wafer map is used to bound how much
+clustering the data allow at the scale of a register matrix.
+**Wrong if.**
+- the simulated and exact yields disagree beyond Monte Carlo error (one of them is then wrong);
+- the shared pool loses to private per-register spares at any clustering strength swept (C2 fails);
+- the K ordering of spare area reverses (C6 fails);
+- the clustering the wafer map allows is already large enough to change a conclusion, so that the
+  conclusion rested on an assumption the data do not support.
+**Assumptions (tier C).** Clustering enters as a gamma-distributed multiplier on the defect rate of
+each block of slices (shape alpha; small alpha is strong clustering; alpha tending to infinity
+recovers independence); within a block, slices fail independently given the multiplier. No spatial
+gradient across the wafer, and no clustering of the transient upsets of M4. The alpha values beyond
+what the wafer map allows are hypothetical stress tests, not predictions.
+
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with
 MoS2 logic is needed to avoid overstating the benefit.
