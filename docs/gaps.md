@@ -175,6 +175,11 @@ each block of slices (shape alpha; small alpha is strong clustering; alpha tendi
 recovers independence); within a block, slices fail independently given the multiplier. No spatial
 gradient across the wafer, and no clustering of the transient upsets of M4. The alpha values beyond
 what the wafer map allows are hypothetical stress tests, not predictions.
+**Result (see docs/results.md, G9).** Claims 1 to 4 confirmed; claim 5 not supported (TMR's yield
+penalty grows when the copies share a die). The spare requirement depends on the *scale* of the
+clustering: at the strength the wafer map allows between matrices, die-level variation raises the
+spares for 99% yield from 134 to 248, block-level clustering only to 147, and one wafer cannot test
+die-level variation. The simulator and the exact model agree on 23 cases.
 
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with

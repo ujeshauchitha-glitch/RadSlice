@@ -9,9 +9,9 @@ failures are recorded here, not deleted.
 Read this first; the milestone sections below it hold the evidence.
 
 **Status of the evidence.** Everything here is simulation. The register file and ALU are models
-beneath an unmodified golden RV64IMAFDC emulator. Of the 29 parameters in `config/params.toml`, 22
-are tier C (hypothetical). The seven sourced ones (5 tier A, 2 tier B) are all about yield and all from
-one paper: `p = 0.71` for an 8-bit register slice was an unverified secondary figure when M0 to M5
+beneath an unmodified golden RV64IMAFDC emulator. Of the 34 parameters in `config/params.toml`, 26
+are tier C (hypothetical). The eight sourced ones (5 tier A, 3 tier B) are all about yield and all from
+one paper (one of them, a bound on clustering, is derived from its wafer map): `p = 0.71` for an 8-bit register slice was an unverified secondary figure when M0 to M5
 were done, and was afterwards checked against the paper's main text and Supplementary Information
 (section "Checking p against the primary source" below). It was confirmed, and so was the 64-bit
 figure (about 7%). Every upset rate and every cost-model choice is still tier C. See
@@ -26,16 +26,17 @@ project contributes is a combined, simulated study of them on a slice-serial RV6
 | # | Conclusion | Evidence | Rests on | Would be overturned by |
 |---|---|---|---|---|
 | C1 | Yield collapses with width: a 64-bit register (8 byte slices) with no spares yields 0.71^8 = 0.0646. The paper measured about 7% for a 64-bit (1,152-transistor) register; its 8-bit and 64-bit yields imply the same per-transistor yield, as independent failures predict. | M0 closed form; M3 simulation; the paper's main text and wafer map | independent slice defects at p = 0.71 (calibrated to the paper; a measured shift-register block, not a random-access register-file slice) | clustering above register scale (none seen on the one wafer map; one unexplained ordering pattern in a small inverter dataset), or a register-file slice yielding unlike the measured shift register |
-| C2 | A shared spare pool beats per-register spares at equal spare count: whole-file yield 0.97 (128 spares, 1.5x slices) against about 0.0001 for 4 private spares per register. | M0, M3 | ideal crossbar; fault-free remap logic | a real crossbar/remap cost or delay that erases the gain; clustered defects exhausting the pool locally |
+| C2 | A shared spare pool beats per-register spares at equal spare count: whole-file yield 0.97 (128 spares, 1.5x slices) against about 0.0001 for 4 private spares per register. It still wins under every clustering tested, but 0.97 is a best case (see C12). | M0, M3, G9 | an ideal crossbar (any spare serves any slice); fault-free remap logic; no die-to-die variation of the defect rate (one wafer cannot test it) | spare reach limited to regions (8 regions: 0.16 at 128 spares even with independent defects); die-to-die variation (99% then needs about 2x slices); a crossbar cost that erases the gain |
 | C3 | A bit-sliced RV64I ALU (K = 8, 16, 32) and byte-sliced register file are functionally exact with zero faults. | M2: 119.5M ALU checks against an independent reference (exhaustive at 8 bits, dense at 16 and 64), lockstep on random programs, rv64ui + rv64mi 65/65 at every K; deliberate bugs caught | the reference and the scope (data ops; PC adders, M/A/F/D and CSRs stay plain) | a single operand pair that differs; 64-bit exhaustiveness is not claimed |
 | C4 | Slice-serial execution costs cycles in proportion to slice count: about 4.2x, 2.4x, 1.4x for K = 8, 16, 32 on a compute loop (base cost 1), less as the non-ALU cost grows. | M2 analytical model | four tier-C cost choices (non-ALU cost, one beat per slice op regardless of K, free W-form sign extension, wide enough register port) | a cycle-accurate model showing wider slices are slower per beat, which narrows the gap |
-| C5 | A boot self-test plus remap recovers yield to the closed form: 65 simulated points agree within Monte Carlo error (largest abs z 2.59); repaired chips pass the riscv-tests, unrepaired ones fail them. | M3 | the one-stuck-bit defect model; independence; fault-free test logic | defects the test cannot see (delay, bridging, multi-bit, defects in the remap/test logic) |
-| C6 | Finer ALU slices need far less spare area for the same yield (99% needs about 2.1x, 4x, 12x ALU area at K = 8, 16, 32), but cost more cycles (C4). Neither wins outright. | M3 closed form + simulation; M2 | p^(K/8) scaling of an ALU slice from a register-slice figure (area-proportional scaling is supported for register-like circuits by the paper's 8-bit and 64-bit yields; ALU logic itself is not measured); ideal crossbar | logic with a different defect density per bit; a crossbar whose cost grows fast with slice count |
+| C5 | A boot self-test plus remap recovers yield to the closed form: 65 simulated points agree within Monte Carlo error (largest abs z 2.59); repaired chips pass the riscv-tests, unrepaired ones fail them. | M3 | the one-stuck-bit defect model; fault-free test logic; independent defects for the closed-form agreement (with clustering, the exact clustered model and the simulator agree on 23 further cases, though the yield itself is lower) | defects the test cannot see (delay, bridging, multi-bit, defects in the remap/test logic) |
+| C6 | Finer ALU slices need far less spare area for the same yield (99% needs about 2.1x, 4x, 12x ALU area at K = 8, 16, 32), but cost more cycles (C4). Neither wins outright. | M3 closed form + simulation; M2; G9 (ordering unchanged by clustering, areas grow) | p^(K/8) scaling of an ALU slice from a register-slice figure (area-proportional scaling is supported for register-like circuits by the paper's 8-bit and 64-bit yields; ALU logic itself is not measured); ideal crossbar | logic with a different defect density per bit; a crossbar whose cost grows fast with slice count |
 | C7 | Weak (intermittent) defects escape a short self-test: with q = 0.1, one round passes 99.9% of chips and every one still has a defective slice in use; yield falls to 80.8% only after 64 rounds. | M3 | single-bit weak-defect model | real defects that are either always visible or never |
 | C8 | Parity with a second copy, or TMR, plus ALU re-execution, remove silent corruption and hangs in this model at every rate swept, at a cost in storage (2x, 3x), ALU cycles (1.7x DWC, 2.5x TMR), a fail-stop failure mode, and yield. | M4: 180 cells x 2000 runs, reproduced exactly on re-run | independent single-bit upsets; fault-free vote/compare/parity logic; PC, memory, CSRs and control FSM not injected | multi-bit or clustered upsets; upsets in the protection logic or the unmodelled state; a persistent ALU upset |
 | C9 | Scrubbing helps schemes that can correct and hurts parity-only (it halts the machine on upsets in registers never read again). | M4 | same as C8 | a scrub policy that only acts on registers about to be read |
 | C10 | Protecting only one side barely helps when both are upset, and can raise silent corruption by letting runs survive to be corrupted by the other side. Only register-file TMR + ALU DWC + scrub succeeded in every run. | M4 | same as C8 | rates where one side dominates by orders of magnitude |
-| C11 | Protection lowers manufacturing yield: TMR needs three repaired register files (boot failure 3.5% to 8.8% at 128 spares per copy; 25.9% to 57.9% at 112). | M4 vs M3 closed form | independent defects per copy | defects correlated across copies, or spares shared between copies |
+| C11 | Protection lowers manufacturing yield: TMR needs three repaired register files (boot failure 3.5% to 8.8% at 128 spares per copy; 25.9% to 57.9% at 112). If the copies share a die-level defect rate the cost is larger, not smaller (6.4 points rather than 0.2 at 144 spares per copy, alpha = 9.4). | M4 vs M3 closed form; G9 | defects independent per copy (otherwise see G9) | spares shared between copies |
+| C12 | The shared-pool spare requirement is robust to clustering at the scales one wafer map can test (within a matrix, between neighbours) but not to die- or wafer-level variation of the defect rate, which it cannot test: at the strength the map allows between matrices (pairwise correlation about 0.03), a rate shared across the register file raises the spares for 99% yield from 134 to 248 (1.52x to 1.97x slices); the same strength in blocks of 32 slices raises it only to 147. | G9: exact model; the C++ simulator agrees on 23 cases (largest abs z 2.35) | gamma-mixed block model with the marginal yield held at p; ideal crossbar | measured die-to-die or wafer-to-wafer yield variation, which would fix the scale and strength |
 
 ### The research question, answered as far as it can be
 The gap (G6) asked whether a 2D-specific fault model, combined with yield sparing and transient-fault
@@ -59,6 +60,7 @@ at the swept rates, but whether those rates are realistic is exactly what is unk
 | G6 combined yield + radiation on a slice-serial core | structure answered; the 2D-specific part is not answerable without data |
 | G7 fair baseline | the hybrid case was run (the ALU-only campaign), but no head-to-head cost comparison (area, register-file yield) was made, so G7's falsifier (the hybrid wins on every metric) is neither confirmed nor ruled out |
 | G8 protection reduces corruption, at what cost | supported in-model (C8 to C11), with the failure mode and yield cost found |
+| G9 yield conclusions under clustered defects | four of five claims confirmed, one (TMR's penalty shrinking) not supported; the result depends on a scale (die-level variation) that one wafer cannot test (C12) |
 
 ### Rejected ideas, failures and corrections (collected)
 - Counting W-form sign extension as an extra beat: rejected for lack of a source; kept as a tier-C
@@ -77,19 +79,24 @@ at the swept rates, but whether those rates are realistic is exactly what is unk
   this Windows/MinGW setup (M1).
 - Known test gap: a mutant that drops the PC comparison from the lockstep check is not caught; it
   only changes when the first divergence is reported (M4).
+- A hypothesis of mine that was wrong: that copies sharing a die would shrink TMR's yield penalty; it
+  grows (G9). And a first reading of the wafer-map bound as covering die-level clustering, which it
+  cannot (G9).
 
 ### Limits of the whole study (v0 scope, restated)
 RV64I + Zicsr datapath only, machine-mode workloads only; memory and CSRs assumed protected; the
 control FSM is described as triplicated but never injected; the PC adders, M/A/F/D and CSR
 operations are not sliced; a single hart; independent single-bit faults and independent permanent
-defects; 256 register slices including x0's word; K = 16 in the fault campaigns.
+defects; 256 register slices including x0's word; K = 16 in the fault campaigns. Clustering was
+studied separately (G9) as gamma-mixed block multipliers, with no spatial gradient, and not applied to
+transient upsets.
 
 ### Open questions, in the order I would pursue them
 1. (Done.) The paper's main text, Supplementary Information and source data have been read; see the
    section on checking p. What the paper does not report (how a register was judged working, chip-level
    yield, anything on radiation) cannot be resolved from it.
-2. Model defect clustering above register scale and see how much of C2, C5 and C6 survives; the
-   paper's one wafer map says nothing against independence but has little power.
+2. (Done, see G9.) What remains is the one thing it showed matters: how much the defect rate varies
+   from die to die and wafer to wafer. That needs per-wafer yields, and the paper reports one wafer.
 3. Put a cost on the spare-routing crossbar and on the vote/compare logic, and redo the K trade-off (C4 vs C6).
 4. Inject the PC, memory, CSRs and the control FSM, and multi-bit upsets.
 5. Replace the analytical cycle model with a cycle-accurate one for at least one K.
@@ -104,6 +111,7 @@ bash scripts/run-hw-riscv-tests.sh 16 rv64ui rv64mi   # also K = 8 and 32
 python scripts/m2_cycles.py                        # model-estimate cycle overhead (M2)
 python scripts/m3_yield.py                         # about 25 s: yield vs spares, weak defects
 python scripts/m4_campaign.py                      # roughly 10 to 15 min on 14 cores: 180 cells x 2000 runs
+python scripts/cluster_study.py                    # about 35 s: clustered defects (G9), simulator vs exact model
 ```
 At the commit this section was written, the six C++ test suites, the sixteen Python tests and rv64ui
 + rv64mi (65/65 at K = 8, 16 and 32) all passed locally on Windows with MinGW. The GitHub Actions
@@ -247,6 +255,81 @@ whether the 64-bit figure was measured as matrices with all eight registers work
 dies were tested and how many worked; whether defects cluster at scales above a register; whether the
 logic and interconnect of the chip have the register's defect density; and anything about radiation. The
 paper contains none of these.
+
+## G9: do the yield conclusions survive clustered defects? (done after the check of p)
+
+Everything above assumed defects fall independently on slices. Here the **marginal slice yield is held
+at exactly p = 0.71** and only the correlation between slices changes, so any difference is due to
+clustering alone. The model is the standard negative-binomial one, generalised to blocks: each block of
+slices draws a defect-rate multiplier from a gamma distribution (shape alpha; small alpha is strong
+clustering, alpha tending to infinity is independence). It is computed exactly (numerical integration
+and convolution, `python/radslice/cluster_model.py`) and simulated with the real self-test and remap
+(`radslice_yield`); the two agree on 23 cases (largest |z| = 2.35). `python scripts/cluster_study.py`
+reproduces every number here (about 35 s); the tables are in `results/cluster_study.md`.
+
+### What the published wafer map does and does not constrain
+- **Within a matrix.** Clustering stronger than alpha = 9.4 (pairwise failure correlation about 0.03) is
+  rejected at about 95%. The map is, if anything, slightly under-dispersed.
+- **Between neighbouring matrices.** No spatial structure (Moran's I = -0.08, P = 0.67 for positive
+  autocorrelation).
+- **Not constrained at all: a defect rate common to every matrix on the wafer.** Wafer-, batch- or
+  die-level variation shifts all matrices together and leaves no difference between them, so one wafer
+  cannot show it. The paper's datasheet does attribute spreads in some device parameters to "batch
+  variations", and says the 8-bit yield "can reach" 71% in the caption, so a batch-to-batch component
+  is plausible; its size is unknown.
+
+### Verdicts on the claims
+| # | Claim | Verdict | Numbers (256 primary slices, p = 0.71, ideal pool unless stated) |
+|---|---|---|---|
+| 1 | Clustering flattens the yield-versus-spares curve: a high target needs more spares, a low one fewer | **Confirmed, and the scale decides how much** | 99% needs 134 spares if independent; with the strength the map allows between matrices (alpha = 9.4): **147** if the clustering is in blocks of 32 slices, **248** (1.97x slices) if it is die-level. At 128 spares the yield falls from 0.972 to 0.717 (die-level). Below about 100 spares clustering helps (96 spares: 0.26 to 0.45). Under strong die-level clustering (alpha = 1) 99% cannot be reached with 640 spares. |
+| 2 | A shared pool still beats private per-register spares | **Confirmed** | 4 private spares per register (32 regions): yield 0.0001 independent, below 0.12 under every clustering tested; the pool is 0.63 or better. |
+| 3 | A spare pool of limited reach loses more than an ideal pool, and more under clustering | **Confirmed, and larger than expected: reach matters even with independent defects** | 128 spares in total: ideal pool 0.972; 2 regions 0.843; 4 regions 0.528; **8 regions 0.161**; 16 regions 0.013. With clustering confined to blocks the size of a region (alpha = 9.4) the same row reads 0.717, 0.512, 0.260, 0.066, 0.005. |
+| 4 | Finer ALU slices still need less spare area (C6) | **Confirmed**, but absolute areas grow | 99% ALU yield needs 2.12x / 4.00x / 12.0x ALU area at K = 8 / 16 / 32 if independent; 2.50x / 5.25x / 21.0x at alpha = 9.4; 2.88x / 7.50x / 43.5x at alpha = 4. The ordering holds in every case. |
+| 5 | TMR's yield penalty shrinks if the register-file copies share a die-level defect rate | **Not supported: the penalty gets larger** | 144 spares per copy: 1 copy 0.9990, 3 copies 0.9969 if independent (a 0.2-point cost); 0.8095 to 0.7453 at alpha = 9.4 (a 6.4-point cost, 3-copy/1-copy ratio 0.92). |
+
+### Consequences for the earlier conclusions
+- **C2 stands only as a best case.** "The shared pool works at about 1.5x" holds for independent defects
+  and for clustering at scales the wafer map can test. If the defect rate varies from die to die with
+  correlation as small as 0.03, 99% needs about 2x the slices, and spares cannot fix a bad die at all:
+  under strong die-level variation the yield saturates well below 1. The result is also conditional on
+  an ideal crossbar; the reach of the spare routing is a first-order design parameter (8 regions
+  cost 81 points of yield at 128 spares).
+- **C5** is unaffected in mechanism: the simulator, using the real self-test and remap, agrees with the exact
+  clustered model. What changes is the yield the self-test recovers, not whether it recovers it.
+- **C6** holds in order; **C11** is worse than stated (above).
+- The headline spare area is therefore a range, not a number: about 1.5x if independent, about 1.6x
+  with block-level clustering at the strength the data allow, about 2.0x with die-level variation at
+  that same pairwise correlation, and more if it is stronger. Which applies is exactly what one wafer
+  cannot say.
+
+### Assumptions and limits
+- Clustering is gamma-mixed block multipliers with independent blocks; no spatial gradient and no
+  correlation that decays smoothly with distance (a real process may be in between a block and the die).
+- Alpha below the data bound (4 and 1) are stress tests, not predictions. The die-level cases at the data
+  bound are what the matrix-scale data permit, not what they indicate; they are worst cases for a
+  constant correlation across the whole file.
+- The 71% is one wafer; if it is a good wafer, the typical `p` is lower and the spare requirements above are
+  optimistic as well.
+- The hypothetical register file is far larger than anything the paper fabricated, so "die-level" here is
+  a different physical scale from the paper's chip.
+
+### Failures and corrections along the way
+- My hypothesis about TMR (claim 5) was wrong, and is reported as such above.
+- I first expected the *placement* of spares to matter for the ideal pool. It does not: only the total
+  number of bad slices matters, so only how slices are grouped into blocks changes the result. Placement
+  matters only for spares of limited reach (claim 3).
+- A first reading of the wafer-map bound as covering die-level clustering was wrong: the test compares
+  matrices with each other and so cannot see a rate they all share. The section above states what it
+  constrains.
+- Both the exact model and the C++ simulator passed their tests first time, which is when I distrust a
+  test; mutants (a wrong calibration, a wrong yield threshold, ignoring spare regions, an unshared die)
+  were each caught.
+
+### What would falsify these conclusions
+- Measured die-to-die or wafer-to-wafer yield variation, which would pin the scale and strength
+  (per-wafer yields from the fabricating group would do).
+- A spare-routing crossbar with a reach and cost different from both extremes studied.
+- Defect correlation that decays with distance in a way these block models represent badly.
 
 ## M0: closed-form yield model
 
