@@ -132,6 +132,34 @@ class DomainYield(unittest.TestCase):
         self.assertLess(domain, ideal)
 
 
+class ReferenceValuesUsedByTheCppTests(unittest.TestCase):
+    """tests/test_cluster.cpp checks the C++ simulator against these exact values; pinning them
+    here means neither implementation can drift without a test failing."""
+
+    def test_pooled(self):
+        for s, want in ((96, 0.4825), (128, 0.6652), (160, 0.7896)):
+            self.assertAlmostEqual(cm.pooled_yield(256, s, P, 4.0), want, places=4)
+        self.assertAlmostEqual(cm.pooled_yield(256, 112, P, 2.0, block=32), 0.6280, places=4)
+        self.assertAlmostEqual(cm.pooled_yield(256, 128, P, 2.0, block=32), 0.8089, places=4)
+
+    def test_region_restricted(self):
+        self.assertAlmostEqual(cm.domain_yield(8, 32, 16, P, None), 0.1614, places=4)
+        self.assertAlmostEqual(cm.domain_yield(8, 32, 16, P, 2.0, 48), 0.0327, places=4)
+        self.assertAlmostEqual(cm.domain_yield(8, 32, 16, P, 2.0, 96), 0.1141, places=4)
+
+    def test_copies_sharing_a_die(self):
+        self.assertAlmostEqual(cm.die_level_chip_yield(3, 128, 16, 0, P, None, False), 0.9178, places=4)
+        self.assertAlmostEqual(cm.die_level_chip_yield(3, 128, 16, 0, P, 3.0, False), 0.6033, places=4)
+        self.assertAlmostEqual(cm.die_level_chip_yield(1, 128, 16, 0, P, 3.0, False), 0.6528, places=4)
+        self.assertAlmostEqual(cm.die_level_chip_yield(3, 128, 16, 8, P, 3.0, True), 0.5889, places=4)
+
+    def test_independent_limit_of_the_chip_formula(self):
+        self.assertAlmostEqual(cm.die_level_chip_yield(1, 128, 16, 0, P, None, False),
+                               ym.file_yield_shared_pool(256, 128, P), places=9)
+        self.assertAlmostEqual(cm.die_level_chip_yield(1, 128, 16, 8, P, None, True),
+                               ym.file_yield_shared_pool(256, 128, P) * ym.alu_yield(16, 8, P), places=9)
+
+
 class WhatTheWaferMapAllows(unittest.TestCase):
     def test_the_published_map_bounds_clustering_at_matrix_scale(self):
         from radslice.wafer_map import load_grid

@@ -189,6 +189,45 @@ def domain_yield(domains: int, primaries_per_domain: int, spares_per_domain: int
     return sum(pmf[: spares_per_domain + 1]) ** domains
 
 
+def die_level_chip_yield(copies: int, rf_spares: int, alu_k: int, alu_spares: int, p: float,
+                         alpha: float | None, include_alu: bool = True, primaries: int = 256,
+                         alu_bits: int = 64) -> float:
+    """Chip yield when every register-file copy and the ALU share ONE die-level defect-rate
+    multiplier (what happens if the copies sit on the same die and the die is clustered).
+
+    Given the multiplier the copies and the ALU are independent, so the chip yield is the average,
+    over the multiplier, of (one copy's repair probability) ** copies times the ALU's. An ALU unit
+    of K bits is K/8 byte-slices of silicon, so its hazard is lam * (K/8) * m.
+    With alpha = None the copies are independent and this is the plain product."""
+    units = alu_bits // alu_k
+    kappa = alu_k / 8.0
+    n_rf, n_alu = primaries + rf_spares, units + alu_spares
+    lc_rf, lc_alu = _log_binom_row(n_rf), _log_binom_row(n_alu)
+
+    def cdf(lc, n, s, ln_bad, ln_good):
+        return min(1.0, sum(math.exp(lc[k] + k * ln_bad + (n - k) * ln_good) for k in range(s + 1)))
+
+    if alpha is None or alpha >= INDEPENDENT_ALPHA:
+        q = 1.0 - p
+        one = cdf(lc_rf, n_rf, rf_spares, math.log(q), math.log(p))
+        a = cdf(lc_alu, n_alu, alu_spares, math.log(1.0 - p ** kappa), kappa * math.log(p)) if include_alu else 1.0
+        return one ** copies * a
+    lam = lam_for(p, alpha)
+    ms, ws = _grid(alpha)
+    total = 0.0
+    for m, w in zip(ms, ws):
+        if m == 0.0:
+            total += w
+            continue
+        rf = cdf(lc_rf, n_rf, rf_spares, math.log(-math.expm1(-lam * m)), -lam * m)
+        a = 1.0
+        if include_alu:
+            h = lam * kappa * m
+            a = cdf(lc_alu, n_alu, alu_spares, math.log(-math.expm1(-h)) if h > 1e-300 else -700.0, -h)
+        total += w * rf ** copies * a
+    return total
+
+
 def correlation(p: float, alpha: float | None) -> float:
     """Pairwise correlation of two slices' failure indicators inside one block (the intra-class
     correlation). 0 for independence."""
