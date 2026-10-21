@@ -153,6 +153,12 @@ class ReferenceValuesUsedByTheCppTests(unittest.TestCase):
         self.assertAlmostEqual(cm.die_level_chip_yield(1, 128, 16, 0, P, 3.0, False), 0.6528, places=4)
         self.assertAlmostEqual(cm.die_level_chip_yield(3, 128, 16, 8, P, 3.0, True), 0.5889, places=4)
 
+    def test_single_unit_alu(self):
+        self.assertAlmostEqual(ym.alu_yield_single(16, 1, P), 0.7541, places=4)
+        self.assertAlmostEqual(cm.die_level_chip_yield(0, 0, 16, 1, P, None, True, alu_positions=1), 0.7541, places=4)
+        self.assertAlmostEqual(cm.die_level_chip_yield(0, 0, 16, 2, P, 4.0, True, alu_positions=1), 0.8500, places=4)
+        self.assertAlmostEqual(cm.die_level_chip_yield(0, 0, 8, 1, P, 4.0, True, alu_positions=1), 0.9021, places=4)
+
     def test_independent_limit_of_the_chip_formula(self):
         self.assertAlmostEqual(cm.die_level_chip_yield(1, 128, 16, 0, P, None, False),
                                ym.file_yield_shared_pool(256, 128, P), places=9)

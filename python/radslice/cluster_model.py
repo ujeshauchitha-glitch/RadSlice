@@ -191,7 +191,7 @@ def domain_yield(domains: int, primaries_per_domain: int, spares_per_domain: int
 
 def die_level_chip_yield(copies: int, rf_spares: int, alu_k: int, alu_spares: int, p: float,
                          alpha: float | None, include_alu: bool = True, primaries: int = 256,
-                         alu_bits: int = 64) -> float:
+                         alu_bits: int = 64, alu_positions: int | None = None) -> float:
     """Chip yield when every register-file copy and the ALU share ONE die-level defect-rate
     multiplier (what happens if the copies sit on the same die and the die is clustered).
 
@@ -199,7 +199,10 @@ def die_level_chip_yield(copies: int, rf_spares: int, alu_k: int, alu_spares: in
     over the multiplier, of (one copy's repair probability) ** copies times the ALU's. An ALU unit
     of K bits is K/8 byte-slices of silicon, so its hazard is lam * (K/8) * m.
     With alpha = None the copies are independent and this is the plain product."""
-    units = alu_bits // alu_k
+    # alu_positions: how many physical units the ALU needs working. The default, alu_bits // alu_k, is one
+    # unit per slice position (the replicated ALU of M2/M3); 1 is a single K-bit unit reused for every
+    # position (G10), which needs just one good unit among 1 + alu_spares.
+    units = alu_bits // alu_k if alu_positions is None else alu_positions
     kappa = alu_k / 8.0
     n_rf, n_alu = primaries + rf_spares, units + alu_spares
     lc_rf, lc_alu = _log_binom_row(n_rf), _log_binom_row(n_alu)

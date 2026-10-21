@@ -105,6 +105,12 @@ def alu_yield(k: int, spares: int, p8: float, xlen: int = 64) -> float:
     return binom_tail(n + spares, n, alu_unit_good_prob(p8, k))
 
 
+def alu_yield_single(k: int, spares: int, p8: float) -> float:
+    """ALU as ONE reused K-bit unit plus `spares` spare units: it works if any of the 1 + spares units
+    is good (independent defects). The organisation of the fabricated chip (G10)."""
+    return 1.0 - (1.0 - alu_unit_good_prob(p8, k)) ** (1 + spares)
+
+
 def alu_area_ratio(k: int, spares: int, xlen: int = 64) -> float:
     """Slice-unit area relative to the spare-free ALU (a spare is one unit, k bits)."""
     n = alu_units(k, xlen)
