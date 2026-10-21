@@ -56,3 +56,9 @@ build/radslice_inject --elf build/workloads/chacha20.elf --rf tmr --alu dwc --sc
 ```
 
 Every upset rate is a tier-C parameter, swept and never quoted as a measurement.
+
+Clustered defects (G9; needs `radslice_yield`, about 35 s):
+
+```bash
+python scripts/cluster_study.py
+```
