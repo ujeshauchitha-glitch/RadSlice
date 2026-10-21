@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 330" font-family="system-ui, sans-serif"><rect width="780" height="330" fill="white"/><g fill="#222"><text x="60" y="22" font-size="14" font-weight="600">Register file: silicon per good file</text>
+<line x1="60" x2="360" y1="282.0" y2="282.0" stroke="#ddd"/><text x="54" y="286.0" font-size="10" text-anchor="end">1</text>
+<line x1="60" x2="360" y1="165.0" y2="165.0" stroke="#ddd"/><text x="54" y="169.0" font-size="10" text-anchor="end">10</text>
+<line x1="60" x2="360" y1="48.0" y2="48.0" stroke="#ddd"/><text x="54" y="52.0" font-size="10" text-anchor="end">100</text>
+<text x="60.0" y="298" font-size="10" text-anchor="middle">1</text>
+<text x="110.0" y="298" font-size="10" text-anchor="middle">2</text>
+<text x="160.0" y="298" font-size="10" text-anchor="middle">4</text>
+<text x="210.0" y="298" font-size="10" text-anchor="middle">8</text>
+<text x="260.0" y="298" font-size="10" text-anchor="middle">16</text>
+<text x="310.0" y="298" font-size="10" text-anchor="middle">32</text>
+<text x="360.0" y="298" font-size="10" text-anchor="middle">64</text>
+<text x="210.0" y="322" font-size="11" text-anchor="middle">regions the spares are split into (relative to bare file)</text>
+<path d="M60.0,260.2 L110.0,258.0 L160.0,254.9 L210.0,250.4 L260.0,243.9 L310.0,234.7 L360.0,207.2" fill="none" stroke="#0f9d58" stroke-width="1.8"/>
+<text x="66" y="60" font-size="10" fill="#0f9d58">crossbar free</text>
+<path d="M60.0,182.4 L110.0,197.0 L160.0,205.6 L210.0,209.0 L260.0,202.0 L310.0,192.3 L360.0,168.0" fill="none" stroke="#1f6feb" stroke-width="1.8"/>
+<text x="66" y="73" font-size="10" fill="#1f6feb">tagged</text>
+<path d="M60.0,33.6 L110.0,62.9 L160.0,89.6 L210.0,113.2 L260.0,132.8 L310.0,147.3 L360.0,145.0" fill="none" stroke="#c62828" stroke-width="1.8"/>
+<text x="66" y="86" font-size="10" fill="#c62828">per-position</text><text x="430" y="22" font-size="14" font-weight="600">Chip: silicon per good chip x cycles/instr</text>
+<line x1="430" x2="730" y1="282.0" y2="282.0" stroke="#ddd"/><text x="424" y="286.0" font-size="10" text-anchor="end">1</text>
+<line x1="430" x2="730" y1="204.0" y2="204.0" stroke="#ddd"/><text x="424" y="208.0" font-size="10" text-anchor="end">10</text>
+<line x1="430" x2="730" y1="126.0" y2="126.0" stroke="#ddd"/><text x="424" y="130.0" font-size="10" text-anchor="end">100</text>
+<line x1="430" x2="730" y1="48.0" y2="48.0" stroke="#ddd"/><text x="424" y="52.0" font-size="10" text-anchor="end">1000</text>
+<text x="430.0" y="298" font-size="10" text-anchor="middle">1</text>
+<text x="480.0" y="298" font-size="10" text-anchor="middle">2</text>
+<text x="530.0" y="298" font-size="10" text-anchor="middle">4</text>
+<text x="580.0" y="298" font-size="10" text-anchor="middle">8</text>
+<text x="630.0" y="298" font-size="10" text-anchor="middle">16</text>
+<text x="680.0" y="298" font-size="10" text-anchor="middle">32</text>
+<text x="730.0" y="298" font-size="10" text-anchor="middle">64</text>
+<text x="580.0" y="322" font-size="11" text-anchor="middle">slice width K (bits)</text>
+<path d="M430.0,86.0 L480.0,110.3 L530.0,132.6 L580.0,152.4 L630.0,168.5 L680.0,179.1 L730.0,178.2" fill="none" stroke="#d97706" stroke-width="1.8"/>
+<text x="436" y="60" font-size="10" fill="#d97706">replicated ALU</text>
+<path d="M430.0,93.7 L480.0,116.1 L530.0,137.4 L580.0,156.9 L630.0,173.1 L680.0,183.5 L730.0,178.2" fill="none" stroke="#7c3aed" stroke-width="1.8"/>
+<text x="436" y="73" font-size="10" fill="#7c3aed">single-unit ALU</text></g><text x="774" y="324" font-size="9" text-anchor="end" fill="#666">exact models, p = 0.71, independent defects; transistor-count area proxy, tier-C costs. Not a measurement.</text></svg>
