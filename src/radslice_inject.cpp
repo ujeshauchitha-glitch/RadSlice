@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
                  "golden_instret,baseline_cycles,mean_cycles,"
                  "lambda_pc,lambda_ir,lambda_csr,lambda_mem,lambda_infield,burst,control_tmr,mem_ecc,mem_scrub,retest,"
                  "mean_pc_upsets,mean_ir_upsets,mean_csr_upsets,mean_mem_upsets,mean_infield_defects,mean_retests,"
-                 "mean_control_masked\n";
+                 "mean_control_masked,golden_mem_words\n";
     std::cout << label << "," << elf << "," << rf << "," << alu << "," << scrub << "," << lam_rf << ","
               << lam_alu << "," << k << "," << (chip.defects ? chip.p : 0.0) << "," << chip.rf_spares
               << "," << chip.alu_spares << "," << runs;
@@ -159,6 +159,6 @@ int main(int argc, char** argv) {
               << extra.infield_per_slice_per_cycle << "," << (extra.burst ? extra.burst : 1) << ","
               << (control_tmr ? 1 : 0) << "," << (mem_ecc ? 1 : 0) << "," << mem_scrub << "," << retest
               << "," << sum_pc / n << "," << sum_ir / n << "," << sum_csr / n << "," << sum_mem / n
-              << "," << sum_inf / n << "," << sum_retest / n << "," << sum_masked / n << "\n";
+              << "," << sum_inf / n << "," << sum_retest / n << "," << sum_masked / n << "," << g.mem_words_touched << "\n";
     return 0;
 }

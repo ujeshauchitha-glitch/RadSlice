@@ -301,10 +301,10 @@ void test_ecc_acts_only_when_the_word_is_read_or_scrubbed() {
     CHECK(go(L, P(RfProtection::None), {}, {}, two).outcome == Outcome::Correct);
     CHECK(go(L, ecc, {}, {}, one).outcome == Outcome::Correct);
     CHECK(go(L, ecc, {}, {}, two).outcome == Outcome::Correct);
-    // the scrubber reads everything: it corrects the single and stops on the double
+    // the scrubber reads everything: it corrects the single; it notes the double but nothing reads it
     const RunResult s1 = go(L, scrubbed, {}, {}, one);
     CHECK(s1.outcome == Outcome::DetectedRecovered && s1.mem_corrected == 1);
-    CHECK(go(L, scrubbed, {}, {}, two).outcome == Outcome::DetectedUnrecovered);
+    CHECK(go(L, scrubbed, {}, {}, two).outcome == Outcome::Correct);
     // a double flip in an instruction that is fetched later stops the machine when it is fetched
     const u64 next_fetch = (L.g.trace[299].pc_after - 0x80000000ull) & ~7ull;   // fetched by the very next instruction
     const RunResult code = go(L, ecc, {}, {}, hit(ForcedKind::Mem, 300, 0, 2, next_fetch));

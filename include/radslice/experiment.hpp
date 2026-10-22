@@ -52,10 +52,11 @@ struct Protection {
     // G15. Control state (PC, fetched instruction, CSRs) triplicated and voted: every upset in it is
     // masked. Without it a flip in the PC or an instruction word is simply taken.
     bool     control_tmr = false;
-    // SECDED over each 64-bit memory word: one flipped bit in a word is corrected, two are detected
-    // and stop the machine, three or more escape (a worst case: real codes catch some of them).
-    // The ledger of single flips is cleared by a scrub every `mem_scrub_period` instructions; with 0
-    // it is never cleared, so two flips in a word at any time in the run are a double error.
+    // SECDED over each 64-bit memory word: one flipped bit in a word is corrected when the word is
+    // read or written, two are detected and stop the machine when the word is read, three or more
+    // escape (a worst case: real codes catch some of them). A scrub every `mem_scrub_period`
+    // instructions corrects pending single flips so that they do not pair up into doubles; it only
+    // notes a double. With 0 there is no scrub and flips accumulate until the word is touched.
     bool     mem_ecc = false;
     unsigned mem_scrub_period = 0;
     // Online self-test and remap of the register file every N retired instructions (0 = off). Costs
@@ -72,7 +73,7 @@ struct FaultRates {
     double pc_per_bit_per_cycle  = 0.0;   // 64 exposed bits
     double ir_per_bit_per_cycle  = 0.0;   // 32 exposed bits of the instruction being fetched
     double csr_per_bit_per_cycle = 0.0;   // 5 CSRs x 64 bits: mstatus, mie, mtvec, mscratch, mepc
-    double mem_per_bit_per_cycle = 0.0;   // every bit of the 4 MiB DRAM; most are never used (derating)
+    double mem_per_bit_per_cycle = 0.0;   // per bit of the memory the program touches (its footprint)
     double infield_per_slice_per_cycle = 0.0;  // a stuck-bit defect appears in a register-file slice
     unsigned burst = 1;                   // bits flipped by one register-file or memory upset (adjacent, one word)
 };
@@ -115,6 +116,8 @@ struct Golden {
     std::string error;
     u64         instret = 0;
     u64         exit_code = 0;
+    u64         mem_words_touched = 0;   // distinct 64-bit words of DRAM read, written or fetched (the footprint)
+    std::vector<u64> touched_offsets;    // their byte offsets from the DRAM base, ascending
     std::vector<TraceEntry> trace;
     std::array<u64, kResultWords> result{};
 };

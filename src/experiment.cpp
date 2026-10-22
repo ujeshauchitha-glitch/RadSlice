@@ -4,6 +4,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <set>
 
 #include "bus.hpp"
 #include "clint.hpp"
@@ -37,7 +38,7 @@ constexpr u64 kDramBytes = 4ull * 1024 * 1024;
 // An upset is a mask of flipped bits in one 64-bit word. With ECC the flips are not applied to the
 // stored bytes; they are held in a ledger of what the check bits would be reporting:
 //   one bit    corrected whenever the word is read or written (the entry then goes away), or by a scrub
-//   two bits   detected but uncorrectable: reading the word, or a scrub pass, raises `uncorrectable`
+//   two bits   detected but uncorrectable: reading the word raises `uncorrectable` (a scrub only notes it)
 //   three+     escapes: the flips are applied silently (a worst case; real codes catch some)
 // Flips accumulate across upsets until the word is read, written or scrubbed.
 class EccDram : public Dram {
@@ -46,6 +47,8 @@ public:
     bool ecc = false;
     bool uncorrectable = false;
     u64  corrected = 0;
+    bool track = false;                       // record which 64-bit words are touched (the memory footprint)
+    std::set<u64> touched;
 
     void upset(u64 word_off, u64 mask) {
         if (!ecc) { flip_bytes(word_off, mask); return; }
@@ -60,24 +63,30 @@ public:
         if (word_off + 8 > bytes().size()) return;
         for (unsigned i = 0; i < 8; ++i) bytes()[word_off + i] ^= static_cast<u8>(mask >> (8 * i));
     }
-    // A pass of the scrubber over every word: singles are corrected, doubles are detected.
+    // A pass of the scrubber over every word: singles are corrected. A double is detected and the word
+    // is poisoned, not acted on: the machine only stops if the word is later read (or partly written),
+    // as a real system would not halt over memory nobody uses.
     void scrub() {
-        for (const auto& e : ledger_) {
-            if (__builtin_popcountll(e.second) == 1) ++corrected;
-            else uncorrectable = true;
+        for (auto it = ledger_.begin(); it != ledger_.end();) {
+            if (__builtin_popcountll(it->second) == 1) { ++corrected; it = ledger_.erase(it); }
+            else ++it;
         }
-        ledger_.clear();
     }
     Result<u64> load(u64 offset, unsigned size_bytes) override {
+        if (track) note(offset, size_bytes);
         if (ecc) check(offset, size_bytes, false);
         return Dram::load(offset, size_bytes);
     }
     Status store(u64 offset, unsigned size_bytes, u64 value) override {
+        if (track) note(offset, size_bytes);
         if (ecc) check(offset, size_bytes, true);
         return Dram::store(offset, size_bytes, value);
     }
 
 private:
+    void note(u64 offset, unsigned size_bytes) {
+        for (u64 w = offset & ~7ull; w < offset + size_bytes; w += 8) touched.insert(w);
+    }
     void check(u64 offset, unsigned size_bytes, bool is_store) {
         if (ledger_.empty()) return;
         for (u64 w = offset & ~7ull; w < offset + size_bytes; w += 8) {
@@ -173,6 +182,7 @@ Golden Workload::run_golden(u64 max_steps) const {
     Machine m;
     if (!m.build(image_)) { g.error = m.error; return g; }
     Cpu& cpu = *m.cpu;
+    m.dram->track = true;
     while (g.instret < max_steps) {
         const u8 rd = rd_of_next(cpu);
         u64 n = 0;
@@ -183,6 +193,8 @@ Golden Workload::run_golden(u64 max_steps) const {
         if (cpu.halted && cpu.htif_tohost_value != 0) {
             g.exit_code = cpu.htif_tohost_value >> 1;
             g.result    = m.result();
+            g.mem_words_touched = m.dram->touched.size();
+            for (u64 w : m.dram->touched) g.touched_offsets.push_back(w);
             g.ok        = (g.exit_code == 0);
             if (!g.ok) g.error = "golden run exited with a failure code";
             return g;
@@ -236,7 +248,9 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
     const double   pc_rate  = rates.pc_per_bit_per_cycle * 64.0;
     const double   ir_rate  = rates.ir_per_bit_per_cycle * 32.0;
     const double   csr_rate = rates.csr_per_bit_per_cycle * 5.0 * 64.0;
-    const double   mem_rate = rates.mem_per_bit_per_cycle * 8.0 * static_cast<double>(kDramBytes);
+    // Memory upsets land on the words the golden run touched (its footprint), at the stated rate per bit:
+    // upsets in memory the program never uses cannot matter, so they are not simulated.
+    const double   mem_rate = rates.mem_per_bit_per_cycle * 64.0 * static_cast<double>(golden.touched_offsets.size());
     const double   inf_rate = rates.infield_per_slice_per_cycle * static_cast<double>(rf.total_slices_all_copies());
     double next_pc = clock(pc_rate), next_ir = clock(ir_rate), next_csr = clock(csr_rate),
            next_mem = clock(mem_rate), next_inf = clock(inf_rate);
@@ -364,7 +378,7 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
             next_csr += exp_draw(rng, csr_rate);
         }
         while (cycles >= next_mem) {
-            const u64 off = rng.next() % kDramBytes;
+            const u64 off = golden.touched_offsets[rng.next() % golden.touched_offsets.size()];
             mem_flip(off, static_cast<unsigned>(rng.next() % 64), burst);
             next_mem += exp_draw(rng, mem_rate);
         }
