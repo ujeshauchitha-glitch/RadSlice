@@ -235,9 +235,101 @@ void test_outcome_invariants_over_many_runs() {
     CHECK(seen[static_cast<int>(Outcome::HangCrash)] > 0);
 }
 
+// --- G15: control state, memory, bursts, in-field defects ---
+
+ForcedFault hit(ForcedKind kind, u64 at, unsigned bit, unsigned burst = 1, u64 mem_offset = 0,
+                unsigned copy = 0, u32 word = 2) {
+    ForcedFault f;
+    f.active = true; f.kind = kind; f.at_instret = at; f.bit = bit; f.burst = burst;
+    f.mem_offset = mem_offset; f.copy = copy; f.word = word;
+    return f;
+}
+
+void test_control_state_upsets() {
+    for (const char* n : kNames) {
+        Loaded L(n);
+        if (!L.g.ok) continue;
+        Protection tmr = P(RfProtection::None);
+        tmr.control_tmr = true;
+
+        const RunResult pc = go(L, P(RfProtection::None), {}, {}, hit(ForcedKind::Pc, 500, 40));
+        CHECK_MSG(pc.outcome == Outcome::HangCrash && pc.pc_upsets == 1,
+                  std::string(n) + " pc flip: " + to_string(pc.outcome));
+        CHECK(pc.first_divergence >= 0);
+        const RunResult pcm = go(L, tmr, {}, {}, hit(ForcedKind::Pc, 500, 40));
+        CHECK_MSG(pcm.outcome == Outcome::DetectedRecovered && pcm.control_masked == 1 && pcm.result == L.g.result,
+                  std::string(n) + " pc flip, voted: " + to_string(pcm.outcome));
+
+        const RunResult ir = go(L, P(RfProtection::None), {}, {}, hit(ForcedKind::Ir, 500, 0));
+        CHECK(ir.ir_upsets == 1);
+        CHECK_MSG(ir.first_divergence >= 0, std::string(n) + " an instruction with bit 0 flipped changes execution");
+        const RunResult irm = go(L, tmr, {}, {}, hit(ForcedKind::Ir, 500, 0));
+        CHECK(irm.outcome == Outcome::DetectedRecovered && irm.result == L.g.result && irm.first_divergence == -1);
+    }
+}
+
+void test_memory_upsets_and_ecc() {
+    Loaded L("chacha20");
+    if (!L.g.ok) return;
+    const u64 at  = L.g.instret - 5;                        // after the results are written
+    const u64 off = kResultBase - 0x80000000ull;            // the first result word
+    Protection ecc = P(RfProtection::None);
+    ecc.mem_ecc = true;
+    const RunResult none = go(L, P(RfProtection::None), {}, {}, hit(ForcedKind::Mem, at, 0, 1, off));
+    CHECK(none.mem_upsets == 1 && none.outcome == Outcome::Sdc && none.result != L.g.result);
+    const RunResult one = go(L, ecc, {}, {}, hit(ForcedKind::Mem, at, 0, 1, off));
+    CHECK_MSG(one.outcome == Outcome::Correct && one.result == L.g.result, "SECDED corrects one flip");
+    const RunResult two_plain = go(L, P(RfProtection::None), {}, {}, hit(ForcedKind::Mem, at, 0, 2, off));
+    CHECK(two_plain.outcome == Outcome::Sdc);
+    const RunResult two = go(L, ecc, {}, {}, hit(ForcedKind::Mem, at, 0, 2, off));
+    CHECK_MSG(two.outcome == Outcome::DetectedUnrecovered, "SECDED detects a double flip and stops");
+    const RunResult three = go(L, ecc, {}, {}, hit(ForcedKind::Mem, at, 0, 3, off));
+    CHECK_MSG(three.outcome == Outcome::Sdc, "a triple flip escapes SECDED in this worst-case model");
+}
+
+void test_rates_for_new_classes_default_to_nothing() {
+    Loaded L("coremark_like");
+    if (!L.g.ok) return;
+    const RunResult a = go(L, P(RfProtection::Tmr), FaultRates{1e-9, 1e-6}, {}, {}, 77);
+    FaultRates r{1e-9, 1e-6};
+    r.burst = 1;
+    const RunResult b = go(L, P(RfProtection::Tmr), r, {}, {}, 77);
+    CHECK(a.outcome == b.outcome && a.model_cycles == b.model_cycles && a.rf_upsets == b.rf_upsets);
+    CHECK(a.pc_upsets + a.ir_upsets + a.csr_upsets + a.mem_upsets + a.infield_defects + a.retests == 0);
+}
+
+void test_infield_defect_and_online_retest() {
+    for (const char* n : kNames) {
+        Loaded L(n);
+        if (!L.g.ok) continue;
+        ChipSpec chip;
+        chip.rf_spares = 8;
+        const ForcedFault d = hit(ForcedKind::Defect, 500, 3, 1, 0, 0, 2 * 8);   // copy 0, sp byte 0, bit 3 stuck at 1
+        const RunResult unprot = go(L, P(RfProtection::None), {}, chip, d);
+        // (irq_loop's sp already has bit 3 set at that point, so stuck-at-1 changes nothing there)
+        if (std::string(n) != "irq_loop")
+            CHECK_MSG(unprot.outcome != Outcome::Correct && unprot.outcome != Outcome::DetectedRecovered,
+                      std::string(n) + " unprotected with a stuck sp bit: " + to_string(unprot.outcome));
+        CHECK(unprot.infield_defects == 1);
+
+        Protection tmr = P(RfProtection::Tmr);
+        const RunResult voted = go(L, tmr, {}, chip, d);
+        CHECK(voted.result == L.g.result && voted.first_divergence == -1 && voted.outcome == Outcome::DetectedRecovered);
+
+        tmr.retest_period = 100;
+        const RunResult fixed = go(L, tmr, {}, chip, d);
+        CHECK(fixed.result == L.g.result && fixed.retests > 0);
+        CHECK(fixed.model_cycles >= voted.model_cycles + fixed.retests * kRetestCyclesPerSlice * 3 * (256 + 8));
+    }
+}
+
 }  // namespace
 
 int main() {
+    test_control_state_upsets();
+    test_memory_upsets_and_ecc();
+    test_rates_for_new_classes_default_to_nothing();
+    test_infield_defect_and_online_retest();
     test_missing_workload_is_reported();
     test_golden_runs_and_known_outputs();
     test_zero_faults_every_configuration_is_exact();

@@ -48,11 +48,33 @@ struct Protection {
     RfProtection  rf  = RfProtection::None;
     AluProtection alu = AluProtection::None;
     unsigned scrub_period = 0;   // scrub one register word every N retired instructions; 0 = off
+
+    // G15. Control state (PC, fetched instruction, CSRs) triplicated and voted: every upset in it is
+    // masked. Without it a flip in the PC or an instruction word is simply taken.
+    bool     control_tmr = false;
+    // SECDED over each 64-bit memory word: one flipped bit in a word is corrected, two are detected
+    // and stop the machine, three or more escape (a worst case: real codes catch some of them).
+    // The ledger of single flips is cleared by a scrub every `mem_scrub_period` instructions; with 0
+    // it is never cleared, so two flips in a word at any time in the run are a double error.
+    bool     mem_ecc = false;
+    unsigned mem_scrub_period = 0;
+    // Online self-test and remap of the register file every N retired instructions (0 = off). Costs
+    // `kRetestCyclesPerSlice` model cycles per physical slice per copy.
+    unsigned retest_period = 0;
 };
+
+constexpr u64 kRetestCyclesPerSlice = 8;   // 4 patterns x (write + read); tier C
 
 struct FaultRates {
     double rf_per_bit_per_cycle = 0.0;
     double alu_per_bit_per_beat = 0.0;
+    // G15. All per bit per model cycle except the last, and all tier C.
+    double pc_per_bit_per_cycle  = 0.0;   // 64 exposed bits
+    double ir_per_bit_per_cycle  = 0.0;   // 32 exposed bits of the instruction being fetched
+    double csr_per_bit_per_cycle = 0.0;   // 5 CSRs x 64 bits: mstatus, mie, mtvec, mscratch, mepc
+    double mem_per_bit_per_cycle = 0.0;   // every bit of the 4 MiB DRAM; most are never used (derating)
+    double infield_per_slice_per_cycle = 0.0;  // a stuck-bit defect appears in a register-file slice
+    unsigned burst = 1;                   // bits flipped by one register-file or memory upset (adjacent, one word)
 };
 
 struct ChipSpec {
@@ -65,12 +87,21 @@ struct ChipSpec {
 
 // A single deterministic upset, for tests: flip `bit` of register `word` in register
 // file copy `copy` just after instruction number `at_instret` retires.
+enum class ForcedKind { RegFile, Pc, Ir, Mem, Defect };
+
 struct ForcedFault {
     bool     active = false;
     u64      at_instret = 0;
     unsigned copy = 0;
     u32      word = 2;      // x2 = sp, live in every workload
     unsigned bit = 30;
+    // G15: what to hit. RegFile uses copy/word/bit and `burst`. Pc flips `bit` of the PC. Ir flips
+    // `bit` (0..31) of the next instruction fetched. Mem flips `burst` bits of the byte at
+    // DRAM base + mem_offset starting at `bit` (a word-relative bit, 0..63). Defect puts a stuck
+    // bit in physical slice `word` of copy `copy`.
+    ForcedKind kind = ForcedKind::RegFile;
+    unsigned   burst = 1;
+    u64        mem_offset = 0;
 };
 
 struct TraceEntry {
@@ -95,6 +126,8 @@ struct RunResult {
     u64      alu_beats = 0;
     u64      model_cycles = 0;       // instret + alu beats + scrub reads (tier-C model)
     u64      rf_upsets = 0, alu_upsets = 0;
+    u64      pc_upsets = 0, ir_upsets = 0, csr_upsets = 0, mem_upsets = 0;
+    u64      control_masked = 0, mem_corrected = 0, infield_defects = 0, retests = 0;
     u64      rf_corrected = 0, alu_corrected = 0, scrub_corrections = 0;
     long long first_divergence = -1; // first retired instruction whose pc or rd value differed
     std::array<u64, kResultWords> result{};
