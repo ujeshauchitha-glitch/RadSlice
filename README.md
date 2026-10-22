@@ -67,4 +67,12 @@ Spare-routing cost and the K trade-off (G10; exact models, about 20 s):
 
 ```bash
 python scripts/crossbar_study.py
+python scripts/routing_defect_study.py   # the routing's own defects (G14)
+python scripts/logic_style_study.py       # n-only versus complementary logic (G11)
+```
+
+More fault classes, seeds and K (G15, G16; needs `radslice_inject` and the workloads, about 6 minutes):
+
+```bash
+python scripts/m6_campaign.py
 ```

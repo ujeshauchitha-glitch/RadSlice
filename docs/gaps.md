@@ -331,8 +331,9 @@ result and gets recorded in `docs/results.md`.
 
 ## Known limits (v0)
 - Modelled datapath is RV64I + Zicsr. The golden core stays RV64IMAFDC.
-- Memory and CSRs are assumed fault-free. The control FSM is triplicated in the
-  model but not fault-injected.
+- Memory, CSRs, the PC and the fetched instruction can be fault-injected since M6 (G15) but are fault-free
+  in the M4 campaigns. The control FSM is described as triplicated; "voted control state" is the injected
+  form of that. Voters, ECC logic, parity logic and retest logic are assumed fault-free.
 - The register file and ALU are replaced beneath the golden core, so S/U modes
   and the MMU still run in the golden model. Only the register file and ALU
   are sliced. Bare-metal M-mode applies to the M3/M4 workloads.

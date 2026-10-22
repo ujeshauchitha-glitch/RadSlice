@@ -24,6 +24,10 @@ jobs:
       - run: cmake --build build -j
       - run: bash scripts/build-workloads.sh
       - run: ctest --test-dir build -R radslice_ --output-on-failure
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/m6_campaign.py --quick --out build/m6-ci
 
   hw-riscv-tests:
     runs-on: ubuntu-latest
@@ -51,3 +55,5 @@ jobs:
       - run: python scripts/m3_yield.py --trials 5000 --out build/m3-ci
       - run: python scripts/cluster_study.py --trials 4000 --out build/cluster-ci
       - run: python scripts/crossbar_study.py --out build/crossbar-ci
+      - run: python scripts/routing_defect_study.py --out build/routing-ci
+      - run: python scripts/logic_style_study.py --out build/style-ci
