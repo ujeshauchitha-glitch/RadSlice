@@ -231,8 +231,10 @@ tier = "C"
 unit = "model"
 note = """Register file: one Poisson process over every exposed stored bit (data bits of
 x1..x31 in every copy, and the parity bit where the scheme has one). ALU: independent
-per slice-unit call. No multi-bit upsets, no correlation between copies, no upsets in
-memory, CSRs, the control FSM, or in the vote/compare/parity logic."""
+per slice-unit call. Since M6 (G15) the harness can also flip bits of the PC, the fetched
+instruction, five CSRs and the memory the program touches, flip several adjacent bits in one
+event, and make defects appear after boot; all of these are off by default. Still not modelled:
+correlation between copies, and upsets in the vote, compare, parity and ECC logic."""
 
 [protection.schemes]
 value = "rf: none | parity | parity-dup | tmr;  alu: none | dwc | tmr;  scrub period"
@@ -403,3 +405,56 @@ unit = "probability"
 note = """Per-transistor yield of routing and tag logic. 0.9992 is the isolated-device figure (tier A,
 yield.measured_transistor) and 0.99762 the one implied by the register yields (tier B,
 yield.implied_per_transistor); the others are intermediate points, e.g. for hardened or larger devices."""
+
+
+# --- G15: more fault classes, and G11 (logic style) ----------------------
+
+[fault.control_state_sweep]
+value = "pc 1e-8, 3e-8, 1e-7; instruction 1e-8, 3e-8, 1e-7; csr 3e-9, 1e-8, 3e-8"
+tier = "C"
+unit = "1/(bit*cycle)"
+note = """Upsets in the 64-bit PC, the 32-bit instruction word being fetched (flipped for that one fetch)
+and five 64-bit CSRs (mstatus, mie, mtvec, mscratch, mepc). Chosen so a run sees about 0.05 to 2 events;
+not an environment. "Voted control state" masks every such upset (tier C: voter assumed fault-free)."""
+
+[fault.memory_sweep]
+value = "3e-11, 1e-10, 3e-10"
+tier = "C"
+unit = "1/(bit*cycle)"
+note = """Upsets in memory, per bit of the memory the program touches (its footprint: 349, 253 and 123
+64-bit words for coremark_like, chacha20 and irq_loop). Memory the program never uses is not exposed.
+SECDED is modelled per 64-bit word: one flip corrected when the word is read, written or scrubbed, two
+detected (the machine stops when the word is read), three or more silent (a worst case)."""
+
+[fault.burst_size]
+value = "1, 2, 3 (memory); 1, 2, 4 (register file)"
+tier = "C"
+unit = "adjacent bits per event"
+note = """Bits flipped by one event, adjacent within one word (one copy of the register file). No source;
+chosen to straddle what single-error protection can and cannot handle."""
+
+[fault.infield_defect_sweep]
+value = "1e-9, 3e-9, 1e-8, 1e-7, 3e-7, 1e-6"
+tier = "C"
+unit = "1/(slice*cycle)"
+note = """A stuck-bit defect appears in one register-file slice (primary or spare), after the boot
+self-test. The literature (docs/results.md, G13 table, rows 9 and 10) says displacement damage and heavy
+ions can create permanent damage but gives no rate for a circuit."""
+
+[protection.online_retest]
+value = "every 500 or 2000 instructions; 8 model cycles per physical slice per copy, or free"
+tier = "C"
+unit = "instructions"
+note = """The boot self-test and remap re-run while the machine is running. Cost is a stall of 8 cycles
+per slice per copy (4 patterns x write and read); the free variant isolates the benefit from the stall.
+A retest that runs out of spares fail-stops schemes that cannot mask a bad copy and lets parity-dup and
+TMR carry on."""
+
+[cost.logic_style_multiplier]
+value = "1, 4/3, 8/5, 2"
+tier = "C"
+unit = "x transistors"
+note = """Transistors per function relative to the paper's n-type-only ratioed library (1). A complementary
+n-input gate has 2n transistors and a ratioed n-only gate n + 1 (4/3 for 2 inputs, 8/5 for 4, towards 2).
+A function of mu times the transistors yields p^mu at an unchanged per-transistor yield; a different
+per-transistor yield for p-type devices would be a further factor, not modelled."""
