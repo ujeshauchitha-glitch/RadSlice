@@ -1,5 +1,7 @@
 #include "radslice/protected_regfile.hpp"
 
+#include "radslice/selftest.hpp"
+
 namespace radslice {
 
 const char* to_string(RfProtection m) {
@@ -118,6 +120,30 @@ void ProtectedRegFile::inject(u64 bit_index) {
     const unsigned bit = static_cast<unsigned>(within % per_word);
     if (bit < 64) copy_(c).flip_bit(word, bit);
     else copy_(c).flip_parity(word);
+}
+
+void ProtectedRegFile::inject_burst(u64 bit_index, unsigned burst) {
+    const u64 per_word = 64 + (uses_parity() ? 1 : 0);
+    const u64 within   = bit_index % per_word;
+    for (unsigned i = 0; i < burst && within + i < per_word; ++i) inject(bit_index + i);
+}
+
+u64 ProtectedRegFile::total_slices_all_copies() const {
+    u64 n = 0;
+    for (const auto& c : copies_) n += c->total_slices();
+    return n;
+}
+
+bool ProtectedRegFile::retest() {
+    u64 saved[SlicedRegFile::kWords];
+    for (u32 w = 0; w < SlicedRegFile::kWords; ++w) saved[w] = peek(w);
+    bool ok = true;
+    for (auto& c : copies_) {
+        for (unsigned l = 0; l < SlicedRegFile::kPrimarySlices; ++l) c->set_remap(l, l);
+        ok = regfile_self_test(*c, 1).ok && ok;
+        for (u32 w = 0; w < SlicedRegFile::kWords; ++w) c->write(w, saved[w]);
+    }
+    return ok;
 }
 
 void ProtectedRegFile::scrub_one() {

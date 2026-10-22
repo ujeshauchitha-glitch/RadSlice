@@ -65,11 +65,22 @@ public:
     // plus the parity bit where the scheme uses one.
     u64  exposed_bits() const;
     void inject(u64 exposed_bit_index);          // flip the bit with this index
+    // A multi-bit upset: `burst` adjacent bits of the same word and copy, starting at this index and
+    // clipped at the end of the word (data bits then the parity bit, where there is one).
+    void inject_burst(u64 exposed_bit_index, unsigned burst);
     void flip_data(unsigned copy, u32 word, unsigned bit) { copy_(copy).flip_bit(word, bit); }
     void flip_parity(unsigned copy, u32 word) { copy_(copy).flip_parity(word); }
 
     // --- scrubbing ---
     void scrub_one();                            // scrub the next word (1..31, round-robin)
+
+    // --- in-field repair (G15) ---
+    // Re-run the boot self-test and remap on every copy while the machine is running. The word
+    // contents are saved first (through the protection scheme, so a vote or a parity-based repair
+    // happens as part of it), the remap is rebuilt from the identity, and the words are written back.
+    // Returns false if some copy no longer has enough good slices; the machine then fail-stops.
+    bool retest();
+    u64  total_slices_all_copies() const;
 
     bool fail_stop() const { return fail_stop_; }
     const RfProtStats& stats() const { return stats_; }

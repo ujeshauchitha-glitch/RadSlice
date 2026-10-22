@@ -196,9 +196,128 @@ void test_composes_with_permanent_defects() {
     for (u32 w = 1; w < 32; ++w) CHECK(rf.read(w) == truth[w]);
 }
 
+// --- G15: multi-bit bursts and in-field repair ---
+
+u64 index_of(RfProtection mode, unsigned copy, u32 word, unsigned bit) {
+    const u64 per_word = 64 + ((mode == RfProtection::Parity || mode == RfProtection::ParityDup) ? 1 : 0);
+    return copy * 31 * per_word + (word - 1) * per_word + bit;
+}
+
+void test_burst_of_two_defeats_parity_but_not_tmr() {
+    for (RfProtection mode : kModes) {
+        ProtectedRegFile rf(mode);
+        const auto truth = fill(rf, 11);
+        rf.inject_burst(index_of(mode, 0, 5, 10), 2);          // bits 10 and 11 of word 5, copy 0
+        const u64 got = rf.read(5);
+        switch (mode) {
+            case RfProtection::None:
+                CHECK(got == (truth[5] ^ (3ull << 10)) && !rf.fail_stop());
+                break;
+            case RfProtection::Parity:                          // even weight: parity cannot see it
+                CHECK(got == (truth[5] ^ (3ull << 10)) && !rf.fail_stop());
+                break;
+            case RfProtection::ParityDup:                       // parity clean but the copies differ
+                CHECK(rf.fail_stop());
+                break;
+            case RfProtection::Tmr:                             // one copy only: out-voted
+                CHECK(got == truth[5] && !rf.fail_stop());
+                break;
+        }
+    }
+}
+
+void test_burst_is_clipped_at_the_end_of_the_word() {
+    ProtectedRegFile rf(RfProtection::None);
+    const auto truth = fill(rf, 12);
+    rf.inject_burst(index_of(RfProtection::None, 0, 7, 62), 5);   // only bits 62 and 63 exist in the word
+    CHECK(rf.read(7) == (truth[7] ^ (3ull << 62)));
+    CHECK(rf.read(8) == truth[8]);                                // the next word is untouched
+    ProtectedRegFile par(RfProtection::Parity);
+    fill(par, 12);
+    par.inject_burst(index_of(RfProtection::Parity, 0, 7, 63), 4);   // bit 63 and the parity bit
+    bool ok = false;
+    (void)par.copy(0).read_raw(7, ok);
+    CHECK(ok);                                                    // data flip and parity flip cancel
+}
+
+void test_burst_of_one_is_a_plain_inject() {
+    for (RfProtection mode : kModes) {
+        ProtectedRegFile a(mode), b(mode);
+        fill(a, 13); fill(b, 13);
+        const u64 idx = index_of(mode, 0, 9, 17);
+        a.inject(idx);
+        b.inject_burst(idx, 1);
+        CHECK(a.peek(9) == b.peek(9));
+    }
+}
+
+void test_retest_isolates_an_in_field_defect_using_the_other_copies() {
+    ProtectedRegFile rf(RfProtection::Tmr, 4);
+    const auto truth = fill(rf, 14);
+    SliceDefect d;
+    d.kind = DefectKind::StuckBit; d.bit = 2; d.value = true;
+    const unsigned phys = 5 * SlicedRegFile::kSlicesPerWord;     // word 5, byte 0, copy 0
+    rf.copy(0).set_defect(phys, d);
+    // Copy 0 now reads wrong in word 5 whenever bit 2 of its byte 0 is 0, and the vote hides it.
+    CHECK(rf.peek(5) == truth[5]);
+    CHECK(rf.retest());
+    CHECK(rf.copy(0).remap(phys) != phys);                        // moved to a spare
+    for (u32 w = 1; w < 32; ++w) CHECK(rf.peek(w) == truth[w]);
+    CHECK(rf.copy(0).peek(5) == truth[5]);                        // copy 0 itself is right again
+}
+
+void test_retest_cannot_recover_what_a_single_copy_already_lost() {
+    ProtectedRegFile rf(RfProtection::None, 4);
+    const auto truth = fill(rf, 15);
+    u64 w = 0;
+    u32 word = 0;
+    for (u32 i = 1; i < 32; ++i) if (!(truth[i] & 4)) { word = i; w = truth[i]; break; }
+    CHECK(word != 0);
+    SliceDefect d;
+    d.kind = DefectKind::StuckBit; d.bit = 2; d.value = true;
+    rf.copy(0).set_defect(word * SlicedRegFile::kSlicesPerWord, d);
+    CHECK(rf.peek(word) == (w | 4));                              // the stuck bit corrupts the read
+    CHECK(rf.retest());
+    CHECK(rf.peek(word) == (w | 4));                              // saved corrupted, written back corrupted
+    rf.write(word, w);
+    CHECK(rf.peek(word) == w);                                    // but new writes now land on a good slice
+}
+
+void test_retest_replaces_a_spare_that_went_bad_after_boot() {
+    ProtectedRegFile rf(RfProtection::None, 4);
+    SliceDefect d;
+    d.kind = DefectKind::StuckBit; d.bit = 1; d.value = true;
+    rf.copy(0).set_defect(3, d);
+    CHECK(regfile_self_test(rf.copy(0), 1).ok);                  // the boot repair
+    const unsigned first_spare = rf.copy(0).remap(3);
+    CHECK(first_spare >= SlicedRegFile::kPrimarySlices);
+    rf.copy(0).set_defect(first_spare, d);                       // the spare itself fails in the field
+    CHECK(rf.retest());
+    const unsigned now = rf.copy(0).remap(3);
+    CHECK(now != first_spare && now >= SlicedRegFile::kPrimarySlices);
+    for (u32 w = 1; w < 32; ++w) rf.write(w, 0x0101010101010101ull * w);
+    for (u32 w = 1; w < 32; ++w) CHECK(rf.peek(w) == 0x0101010101010101ull * w);
+}
+
+void test_retest_fails_when_the_spares_run_out() {
+    ProtectedRegFile rf(RfProtection::None, 1);
+    SliceDefect d;
+    d.kind = DefectKind::StuckBit; d.bit = 0; d.value = true;
+    rf.copy(0).set_defect(3, d);
+    rf.copy(0).set_defect(20, d);                                 // two bad primaries, one spare
+    CHECK(!rf.retest());
+}
+
 }  // namespace
 
 int main() {
+    test_burst_of_two_defeats_parity_but_not_tmr();
+    test_burst_is_clipped_at_the_end_of_the_word();
+    test_burst_of_one_is_a_plain_inject();
+    test_retest_isolates_an_in_field_defect_using_the_other_copies();
+    test_retest_cannot_recover_what_a_single_copy_already_lost();
+    test_retest_replaces_a_spare_that_went_bad_after_boot();
+    test_retest_fails_when_the_spares_run_out();
     test_clean_roundtrip_all_modes();
     test_exposed_bits();
     test_peek_has_no_side_effects();
