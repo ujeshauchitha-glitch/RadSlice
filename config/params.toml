@@ -387,3 +387,19 @@ tier = "C"
 unit = "model"
 note = """Which one the fabricated chip's wording implies is ambiguous for K > 1; the paper's chip is
 K = 1 and reuses a single 1-bit ALU. Both are costed."""
+
+[cost.shared_block_transistors]
+value = 1152
+tier = "C"
+unit = "transistors"
+note = """Routing shared by all register-file spares (the final select per lane, bit and read port:
+8 x 8 x 2 x 9). A single point of failure unless replicated; replication assumes an ideal choice among
+copies, which is optimistic. G14 also shows results with this block left out."""
+
+[yield.routing_transistor_sweep]
+value = "1, 0.99999, 0.9999, 0.9996, 0.9992, 0.9985, 0.99762"
+tier = "C"
+unit = "probability"
+note = """Per-transistor yield of routing and tag logic. 0.9992 is the isolated-device figure (tier A,
+yield.measured_transistor) and 0.99762 the one implied by the register yields (tier B,
+yield.implied_per_transistor); the others are intermediate points, e.g. for hardened or larger devices."""

@@ -6,7 +6,7 @@ hand (a test fails if this file drifts from the parameters).
 Tiers: **A** published measurement (source given), **B** calibrated model (source given),
 **C** hypothetical. A simulation that uses any tier-C value is a what-if, not a measurement.
 
-**46 parameters: 8 tier A, 5 tier B, 33 tier C.**
+**48 parameters: 8 tier A, 5 tier B, 35 tier C.**
 
 13 parameters have a source: `cost.adder_bit_transistors`, `cost.mux2_transistors`, `cost.rf_block_transistors`, `cost.selection_module_transistors`, `cost.store_bit_transistors`, `yield.cluster_alpha_min_matrix_scale`, `yield.implied_per_transistor`, `yield.measured_64bit_register`, `yield.measured_8bit_shift_register`, `yield.measured_8bit_shift_register_from_map`, `yield.measured_inverter`, `yield.measured_transistor`, `yield.p_slice_good`. All come from one paper (Ao, Zhou et al., Nature 640, 654-661, 2025: main text and Supplementary Fig. 7) and are all about yield. Every other parameter, including every upset rate, is tier C, and every result in `docs/results.md` is still conditional on those.
 
@@ -39,6 +39,7 @@ Tiers: **A** published measurement (source given), **B** calibrated model (sourc
 | `cost.rf_block_transistors` | 144 | transistors | A | An 8-bit register block, the byte slice of this project's register file. |
 | `cost.routing_topology` | tagged spare array (default); per-position multiplexers (upper bound) | model | C | Tagged: spares sit in a side array, each holding a tag of the slice it replaces, compared on every access, and the output lane multiplexers gain one input per reaching spare. Per-position: every slice position has its own multiplexer over the spares in reach. |
 | `cost.selection_module_transistors` | 27 | transistors | A | A four-input selection module. |
+| `cost.shared_block_transistors` | 1152 | transistors | C | Routing shared by all register-file spares (the final select per lane, bit and read port: 8 x 8 x 2 x 9). A single point of failure unless replicated; replication assumes an ideal choice among copies, which is optimistic. |
 | `cost.store_bit_transistors` | 18 | transistors | B | Used for the storage part of one tag bit in the spare array. |
 | `cost.tag_compare_transistors` | 9 | transistors per tag bit per port | C | One XNOR-class gate. Swept 0 to 27. |
 | `cycles.base_per_instruction` | 1 | beats | C | Cost of everything outside the integer ALU: fetch, decode, memory access, the plain PC adders, and M/A/F/D. scripts/m2_cycles.py reports 1, 2 and 4. A larger value dilutes the ALU overhead, so the overhead at 1 is the pessimistic end. |
@@ -73,4 +74,5 @@ Tiers: **A** published measurement (source given), **B** calibrated model (sourc
 | `yield.measured_inverter` | 0.9977 | probability | A | "898 out of 900 inverters worked correctly with a yield of 99.77%": a 30 x 30 array in the 6 mm x 6 mm region of the chip, overall noise tolerance 0.5 V. Two failures in 900 (95% interval 0.06% to 0.81% failing). |
 | `yield.measured_transistor` | 0.9992 | probability | A | "The overall transistor yield reached 99.92%": three batches of wafers, each with 7,000 transistors, 800 randomly selected for testing. Isolated-device yield; it does not predict register yield (see yield.implied_per_transistor). |
 | `yield.p_slice_good` | 0.71 | probability | B | Probability that one 8-bit register slice is defect-free. Calibrated, not measured, because the modelled slice is assumed to yield like the measured 8-bit shift register of 144 transistors: the same circuit block as the chip's own register, but not a random-ac... |
+| `yield.routing_transistor_sweep` | 1, 0.99999, 0.9999, 0.9996, 0.9992, 0.9985, 0.99762 | probability | C | Per-transistor yield of routing and tag logic. 0.9992 is the isolated-device figure (tier A, yield.measured_transistor) and 0.99762 the one implied by the register yields (tier B, yield.implied_per_transistor); the others are intermediate points, e.g. |
 | `yield.slice_width_bits` | 8 | bits | C | Granularity of a physical register slice (a byte slice). A modelling choice. |
