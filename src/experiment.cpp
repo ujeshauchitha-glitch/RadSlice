@@ -32,15 +32,73 @@ namespace {
 
 constexpr u64 kDramBytes = 4ull * 1024 * 1024;
 
+// DRAM with a SECDED ledger (G15). With `ecc` off it behaves exactly like Dram.
+//
+// An upset is a mask of flipped bits in one 64-bit word. With ECC the flips are not applied to the
+// stored bytes; they are held in a ledger of what the check bits would be reporting:
+//   one bit    corrected whenever the word is read or written (the entry then goes away), or by a scrub
+//   two bits   detected but uncorrectable: reading the word, or a scrub pass, raises `uncorrectable`
+//   three+     escapes: the flips are applied silently (a worst case; real codes catch some)
+// Flips accumulate across upsets until the word is read, written or scrubbed.
+class EccDram : public Dram {
+public:
+    using Dram::Dram;
+    bool ecc = false;
+    bool uncorrectable = false;
+    u64  corrected = 0;
+
+    void upset(u64 word_off, u64 mask) {
+        if (!ecc) { flip_bytes(word_off, mask); return; }
+        const auto it = ledger_.find(word_off);
+        const u64 combined = (it == ledger_.end() ? 0 : it->second) ^ mask;
+        const int weight = __builtin_popcountll(combined);
+        if (weight == 0) ledger_.erase(word_off);
+        else if (weight <= 2) ledger_[word_off] = combined;
+        else { ledger_.erase(word_off); flip_bytes(word_off, combined); }
+    }
+    void flip_bytes(u64 word_off, u64 mask) {
+        if (word_off + 8 > bytes().size()) return;
+        for (unsigned i = 0; i < 8; ++i) bytes()[word_off + i] ^= static_cast<u8>(mask >> (8 * i));
+    }
+    // A pass of the scrubber over every word: singles are corrected, doubles are detected.
+    void scrub() {
+        for (const auto& e : ledger_) {
+            if (__builtin_popcountll(e.second) == 1) ++corrected;
+            else uncorrectable = true;
+        }
+        ledger_.clear();
+    }
+    Result<u64> load(u64 offset, unsigned size_bytes) override {
+        if (ecc) check(offset, size_bytes, false);
+        return Dram::load(offset, size_bytes);
+    }
+    Status store(u64 offset, unsigned size_bytes, u64 value) override {
+        if (ecc) check(offset, size_bytes, true);
+        return Dram::store(offset, size_bytes, value);
+    }
+
+private:
+    void check(u64 offset, unsigned size_bytes, bool is_store) {
+        if (ledger_.empty()) return;
+        for (u64 w = offset & ~7ull; w < offset + size_bytes; w += 8) {
+            const auto it = ledger_.find(w);
+            if (it == ledger_.end()) continue;
+            if (__builtin_popcountll(it->second) == 1) { ++corrected; ledger_.erase(it); }
+            else { uncorrectable = true; if (is_store) ledger_.erase(it); }
+        }
+    }
+    std::map<u64, u64> ledger_;
+};
+
 struct Machine {
     Bus                  bus;
-    Dram*                dram = nullptr;
+    EccDram*             dram = nullptr;
     Clint*               clint = nullptr;
     std::unique_ptr<Cpu> cpu;
     std::string          error;
 
     bool build(const std::vector<u8>& image) {
-        auto dram_owned  = std::make_unique<Dram>(kDramBytes);
+        auto dram_owned  = std::make_unique<EccDram>(kDramBytes);
         auto clint_owned = std::make_unique<Clint>();
         auto sys_owned   = std::make_unique<Syscon>();
         dram  = dram_owned.get();
@@ -186,28 +244,15 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
     const u64      budget = 3 * golden.instret + 1000;
     u64            cycles = 0;
     bool           finished = false, fail_stop = false;
-    std::map<u64, u64> ecc_ledger;          // word address -> mask of flipped bits not yet applied
+    m.dram->ecc = prot.mem_ecc;
 
     // Flip `count` adjacent bits of the 64-bit word at DRAM offset `offset`, starting at word bit
-    // `bit` and clipped at the top of the word. With SECDED the flips are held in a ledger instead
-    // (one flip is corrected for free; two stop the machine; three or more are applied silently).
+    // `bit` and clipped at the top of the word (see EccDram for what SECDED does with the flips).
     auto mem_flip = [&](u64 offset, unsigned bit, unsigned count) {
-        const u64 addr = DRAM_BASE + (offset & ~7ull);
         u64 mask = 0;
         for (unsigned i = 0; i < count && bit + i < 64; ++i) mask |= 1ull << (bit + i);
         ++res.mem_upsets;
-        auto apply = [&](u64 mk) {
-            const Result<u64> v = m.bus.load(addr, 8, AccessType::Load);
-            if (v) (void)m.bus.store(addr, 8, v.value ^ mk);
-        };
-        if (!prot.mem_ecc) { apply(mask); return; }
-        const u64 combined = ecc_ledger.count(addr) ? (ecc_ledger[addr] ^ mask) : mask;
-        const int weight = __builtin_popcountll(combined);
-        if (weight == 0) { ecc_ledger.erase(addr); return; }
-        if (weight == 1) { ecc_ledger[addr] = combined; return; }
-        ecc_ledger.erase(addr);
-        apply(combined);
-        if (weight == 2) fail_stop = true;      // detected, uncorrectable
+        m.dram->upset(offset & ~7ull, mask);
     };
     auto pc_flip = [&](unsigned bit) {
         ++res.pc_upsets;
@@ -231,10 +276,13 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
             if (prot.control_tmr) {
                 ++res.control_masked;
             } else {
-                const Result<u64> w = m.bus.load(ir_addr, 4, AccessType::Load);
-                if (w) {
-                    ir_saved = static_cast<u32>(w.value);
-                    (void)m.bus.store(ir_addr, 4, ir_saved ^ (1u << ir_bit));
+                // The flip goes straight into the stored bytes for the one fetch, bypassing the
+                // ECC ledger: it is a fault in the fetch path, not in the memory array.
+                std::vector<u8>& mem = m.dram->bytes();
+                const u64 off = ir_addr - DRAM_BASE;
+                if (ir_addr >= DRAM_BASE && off + 4 <= mem.size()) {
+                    for (unsigned i = 0; i < 4; ++i) ir_saved |= static_cast<u32>(mem[off + i]) << (8 * i);
+                    for (unsigned i = 0; i < 4; ++i) mem[off + i] ^= static_cast<u8>((1u << ir_bit) >> (8 * i));
                     ir_hit = true;
                 }
             }
@@ -243,14 +291,17 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
         const u64 beats0 = alu.stats().beats;
         u64 n = 0;
         const Status st = cpu.run(1, &n);
-        if (ir_hit) (void)m.bus.store(ir_addr, 4, ir_saved);
+        if (ir_hit) {
+            std::vector<u8>& mem = m.dram->bytes();
+            for (unsigned i = 0; i < 4; ++i) mem[ir_addr - DRAM_BASE + i] = static_cast<u8>(ir_saved >> (8 * i));
+        }
         ++res.instret;
         cycles += 1 + (alu.stats().beats - beats0);
 
         // A parity or vote failure on a register read is flagged by the hardware as
         // the value is read, so it takes priority over whatever that corrupted value
         // then did to the instruction (such as a faulting access).
-        if (rf.fail_stop()) { fail_stop = true; break; }
+        if (rf.fail_stop() || m.dram->uncorrectable) { fail_stop = true; break; }
         if (!st) {                                  // a crash is by definition a divergence
             res.crash = true;
             if (res.first_divergence < 0) res.first_divergence = static_cast<long long>(res.instret - 1);
@@ -325,10 +376,8 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
             ++res.infield_defects;
             next_inf += exp_draw(rng, inf_rate);
         }
-        if (prot.mem_ecc && prot.mem_scrub_period && res.instret % prot.mem_scrub_period == 0) {
-            res.mem_corrected += ecc_ledger.size();
-            ecc_ledger.clear();
-        }
+        if (prot.mem_ecc && prot.mem_scrub_period && res.instret % prot.mem_scrub_period == 0) m.dram->scrub();
+        if (m.dram->uncorrectable) { fail_stop = true; break; }
         if (prot.retest_period && res.instret % prot.retest_period == 0) {
             ++res.retests;
             cycles += kRetestCyclesPerSlice * rf.total_slices_all_copies();
@@ -342,7 +391,9 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
     res.rf_corrected      = rf.stats().corrected;
     res.alu_corrected     = red.stats().corrected;
     res.scrub_corrections = rf.stats().scrub_corrections;
-    res.result            = m.result();
+    res.result            = m.result();    // the output is read back through the ECC, like any other read
+    if (m.dram->uncorrectable) fail_stop = true;
+    res.mem_corrected     = m.dram->corrected;
 
     const bool corrected_something = res.rf_corrected + res.alu_corrected + res.control_masked + res.mem_corrected > 0;
     if (fail_stop) {

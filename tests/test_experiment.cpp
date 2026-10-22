@@ -278,13 +278,38 @@ void test_memory_upsets_and_ecc() {
     const RunResult none = go(L, P(RfProtection::None), {}, {}, hit(ForcedKind::Mem, at, 0, 1, off));
     CHECK(none.mem_upsets == 1 && none.outcome == Outcome::Sdc && none.result != L.g.result);
     const RunResult one = go(L, ecc, {}, {}, hit(ForcedKind::Mem, at, 0, 1, off));
-    CHECK_MSG(one.outcome == Outcome::Correct && one.result == L.g.result, "SECDED corrects one flip");
+    CHECK_MSG(one.outcome == Outcome::DetectedRecovered && one.result == L.g.result, "SECDED corrects one flip");
     const RunResult two_plain = go(L, P(RfProtection::None), {}, {}, hit(ForcedKind::Mem, at, 0, 2, off));
     CHECK(two_plain.outcome == Outcome::Sdc);
     const RunResult two = go(L, ecc, {}, {}, hit(ForcedKind::Mem, at, 0, 2, off));
     CHECK_MSG(two.outcome == Outcome::DetectedUnrecovered, "SECDED detects a double flip and stops");
     const RunResult three = go(L, ecc, {}, {}, hit(ForcedKind::Mem, at, 0, 3, off));
     CHECK_MSG(three.outcome == Outcome::Sdc, "a triple flip escapes SECDED in this worst-case model");
+}
+
+void test_ecc_acts_only_when_the_word_is_read_or_scrubbed() {
+    Loaded L("chacha20");
+    if (!L.g.ok) return;
+    const u64 unused = 0x200000;                                // far from code, data, stack and results
+    Protection ecc = P(RfProtection::None);
+    ecc.mem_ecc = true;
+    Protection scrubbed = ecc;
+    scrubbed.mem_scrub_period = 100;
+    const ForcedFault one = hit(ForcedKind::Mem, 300, 5, 1, unused);
+    const ForcedFault two = hit(ForcedKind::Mem, 300, 5, 2, unused);
+    // a flip nobody reads does nothing, with or without ECC
+    CHECK(go(L, P(RfProtection::None), {}, {}, two).outcome == Outcome::Correct);
+    CHECK(go(L, ecc, {}, {}, one).outcome == Outcome::Correct);
+    CHECK(go(L, ecc, {}, {}, two).outcome == Outcome::Correct);
+    // the scrubber reads everything: it corrects the single and stops on the double
+    const RunResult s1 = go(L, scrubbed, {}, {}, one);
+    CHECK(s1.outcome == Outcome::DetectedRecovered && s1.mem_corrected == 1);
+    CHECK(go(L, scrubbed, {}, {}, two).outcome == Outcome::DetectedUnrecovered);
+    // a double flip in an instruction that is fetched later stops the machine when it is fetched
+    const u64 next_fetch = (L.g.trace[299].pc_after - 0x80000000ull) & ~7ull;   // fetched by the very next instruction
+    const RunResult code = go(L, ecc, {}, {}, hit(ForcedKind::Mem, 300, 0, 2, next_fetch));
+    CHECK(code.outcome == Outcome::DetectedUnrecovered);
+    CHECK(go(L, ecc, {}, {}, hit(ForcedKind::Mem, 300, 0, 1, next_fetch)).outcome == Outcome::DetectedRecovered);
 }
 
 void test_rates_for_new_classes_default_to_nothing() {
@@ -328,6 +353,7 @@ void test_infield_defect_and_online_retest() {
 int main() {
     test_control_state_upsets();
     test_memory_upsets_and_ecc();
+    test_ecc_acts_only_when_the_word_is_read_or_scrubbed();
     test_rates_for_new_classes_default_to_nothing();
     test_infield_defect_and_online_retest();
     test_missing_workload_is_reported();

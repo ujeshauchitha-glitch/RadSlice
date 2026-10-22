@@ -15,6 +15,7 @@
 //          --control-tmr        (PC, instruction and CSR upsets are masked)
 //          --mem-ecc  --mem-scrub N    (SECDED on memory words, ledger cleared every N instructions)
 //          --retest N           (online register-file self-test and remap every N instructions)
+//          --spares RF ALU      (spares present without boot-time defects, for in-field defects)
 //
 // Run i uses the stream Rng(seed + i * golden-ratio), so results are reproducible and a
 // campaign can be split across processes with --first-run / --runs. Upset rates are
@@ -67,7 +68,10 @@ int main(int argc, char** argv) {
         else if (a == "--k") k = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
         else if (a == "--label") label = val();
         else if (a == "--verbose") verbose = true;
-        else if (a == "--defects") {
+        else if (a == "--spares") {    // spares present, but no boot-time defects (for in-field defects)
+            chip.rf_spares = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+            chip.alu_spares = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        } else if (a == "--defects") {
             chip.defects = true;
             chip.p = std::strtod(val().c_str(), nullptr);
             chip.rf_spares = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
