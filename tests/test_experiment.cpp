@@ -312,6 +312,21 @@ void test_ecc_acts_only_when_the_word_is_read_or_scrubbed() {
     CHECK(go(L, ecc, {}, {}, hit(ForcedKind::Mem, 300, 0, 1, next_fetch)).outcome == Outcome::DetectedRecovered);
 }
 
+void test_retest_with_no_spares_left() {
+    Loaded L("chacha20");
+    if (!L.g.ok) return;
+    ChipSpec chip;
+    chip.rf_spares = 0;                                         // nothing to remap onto
+    const ForcedFault d = hit(ForcedKind::Defect, 500, 3, 1, 0, 0, 2 * 8);
+    Protection tmr = P(RfProtection::Tmr);
+    tmr.retest_period = 100;
+    const RunResult t = go(L, tmr, {}, chip, d);
+    CHECK(t.retest_failures > 0 && t.outcome == Outcome::DetectedRecovered && t.result == L.g.result);
+    Protection none = P(RfProtection::None);
+    none.retest_period = 100;
+    CHECK(go(L, none, {}, chip, d).outcome == Outcome::DetectedUnrecovered);
+}
+
 void test_rates_for_new_classes_default_to_nothing() {
     Loaded L("coremark_like");
     if (!L.g.ok) return;
@@ -356,6 +371,7 @@ int main() {
     test_ecc_acts_only_when_the_word_is_read_or_scrubbed();
     test_rates_for_new_classes_default_to_nothing();
     test_infield_defect_and_online_retest();
+    test_retest_with_no_spares_left();
     test_missing_workload_is_reported();
     test_golden_runs_and_known_outputs();
     test_zero_faults_every_configuration_is_exact();

@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
     FaultRates rates = extra;
     rates.rf_per_bit_per_cycle = lam_rf;
     rates.alu_per_bit_per_beat = lam_alu;
-    double sum_pc = 0, sum_ir = 0, sum_csr = 0, sum_mem = 0, sum_inf = 0, sum_retest = 0, sum_masked = 0;
+    double sum_rtf = 0, sum_pc = 0, sum_ir = 0, sum_csr = 0, sum_mem = 0, sum_inf = 0, sum_retest = 0, sum_masked = 0;
     unsigned long long count[kNumOutcomes] = {};
     unsigned long long hang = 0, crash = 0, diverged = 0, with_upset = 0;
     double sum_cycles = 0, sum_rf_up = 0, sum_alu_up = 0, sum_corr = 0;
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
         sum_pc += static_cast<double>(r.pc_upsets); sum_ir += static_cast<double>(r.ir_upsets);
         sum_csr += static_cast<double>(r.csr_upsets); sum_mem += static_cast<double>(r.mem_upsets);
         sum_inf += static_cast<double>(r.infield_defects); sum_retest += static_cast<double>(r.retests);
-        sum_masked += static_cast<double>(r.control_masked);
+        sum_masked += static_cast<double>(r.control_masked); sum_rtf += static_cast<double>(r.retest_failures);
         if (r.outcome != Outcome::BootFailure) {
             sum_cycles  += static_cast<double>(r.model_cycles);
             ++ran;
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
                  "golden_instret,baseline_cycles,mean_cycles,"
                  "lambda_pc,lambda_ir,lambda_csr,lambda_mem,lambda_infield,burst,control_tmr,mem_ecc,mem_scrub,retest,"
                  "mean_pc_upsets,mean_ir_upsets,mean_csr_upsets,mean_mem_upsets,mean_infield_defects,mean_retests,"
-                 "mean_control_masked,golden_mem_words\n";
+                 "mean_control_masked,golden_mem_words,mean_retest_failures\n";
     std::cout << label << "," << elf << "," << rf << "," << alu << "," << scrub << "," << lam_rf << ","
               << lam_alu << "," << k << "," << (chip.defects ? chip.p : 0.0) << "," << chip.rf_spares
               << "," << chip.alu_spares << "," << runs;
@@ -159,6 +159,6 @@ int main(int argc, char** argv) {
               << extra.infield_per_slice_per_cycle << "," << (extra.burst ? extra.burst : 1) << ","
               << (control_tmr ? 1 : 0) << "," << (mem_ecc ? 1 : 0) << "," << mem_scrub << "," << retest
               << "," << sum_pc / n << "," << sum_ir / n << "," << sum_csr / n << "," << sum_mem / n
-              << "," << sum_inf / n << "," << sum_retest / n << "," << sum_masked / n << "," << g.mem_words_touched << "\n";
+              << "," << sum_inf / n << "," << sum_retest / n << "," << sum_masked / n << "," << g.mem_words_touched << "," << sum_rtf / n << "\n";
     return 0;
 }

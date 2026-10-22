@@ -125,7 +125,7 @@ def row_for(cell, r, runs):
                mean_pc=float(r["mean_pc_upsets"]), mean_ir=float(r["mean_ir_upsets"]),
                mean_csr=float(r["mean_csr_upsets"]), mean_mem=float(r["mean_mem_upsets"]),
                mean_infield=float(r["mean_infield_defects"]), mean_retests=float(r["mean_retests"]),
-               mean_masked=float(r["mean_control_masked"]),
+               mean_masked=float(r["mean_control_masked"]), mean_retest_failures=float(r["mean_retest_failures"]),
                mean_cycles_over_baseline=(float(r["mean_cycles"]) / base) if base else 0.0)
     for o in OUTCOMES:
         lo, hi = wilson(counts[o], n)
@@ -273,12 +273,13 @@ def write_summary(rows, path, runs):
     L.append("## B4. Defects appearing after boot (stuck bit in a register-file slice, 8 spares per copy)\n")
     L.append("`retest` is the period, in instructions, of an online self-test and remap (0 = never); each costs "
              f"{m4_retest_cycles()} model cycles per physical slice per copy.\n")
-    L.append("| workload | scheme | rate per slice-cycle | retest | mean defects/run | mean retests/run | cycles |" + MIXHEAD[1:])
-    L.append("|:--|:--|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    L.append("| workload | scheme | rate per slice-cycle | retest | mean defects/run | mean retests/run | retests that ran out of spares | cycles |" + MIXHEAD[1:])
+    L.append("|:--|:--|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for r in rows:
         if r["part"] == "B4":
             L.append(f"| {r['workload']} | {r['config']} | {r['lam_infield']:g} | {r['retest']} | "
-                     f"{r['mean_infield']:.3f} | {r['mean_retests']:.1f} | {r['mean_cycles_over_baseline']:.2f}x | {mix(r)} |")
+                     f"{r['mean_infield']:.3f} | {r['mean_retests']:.1f} | {r['mean_retest_failures']:.1f} | "
+                     f"{r['mean_cycles_over_baseline']:.2f}x | {mix(r)} |")
     L.append("")
 
     # ---- B5

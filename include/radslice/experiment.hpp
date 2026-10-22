@@ -60,7 +60,8 @@ struct Protection {
     bool     mem_ecc = false;
     unsigned mem_scrub_period = 0;
     // Online self-test and remap of the register file every N retired instructions (0 = off). Costs
-    // `kRetestCyclesPerSlice` model cycles per physical slice per copy.
+    // `kRetestCyclesPerSlice` model cycles per physical slice per copy. If a copy has run out of spares
+    // the retest fails: parity-dup and TMR carry on (the vote still masks), the others fail-stop.
     unsigned retest_period = 0;
 };
 
@@ -130,7 +131,7 @@ struct RunResult {
     u64      model_cycles = 0;       // instret + alu beats + scrub reads (tier-C model)
     u64      rf_upsets = 0, alu_upsets = 0;
     u64      pc_upsets = 0, ir_upsets = 0, csr_upsets = 0, mem_upsets = 0;
-    u64      control_masked = 0, mem_corrected = 0, infield_defects = 0, retests = 0;
+    u64      control_masked = 0, mem_corrected = 0, infield_defects = 0, retests = 0, retest_failures = 0;
     u64      rf_corrected = 0, alu_corrected = 0, scrub_corrections = 0;
     long long first_divergence = -1; // first retired instruction whose pc or rd value differed
     std::array<u64, kResultWords> result{};
