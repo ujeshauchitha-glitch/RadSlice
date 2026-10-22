@@ -394,7 +394,7 @@ RunResult Workload::run(const Golden& golden, const Protection& prot, const Faul
         if (m.dram->uncorrectable) { fail_stop = true; break; }
         if (prot.retest_period && res.instret % prot.retest_period == 0) {
             ++res.retests;
-            cycles += kRetestCyclesPerSlice * rf.total_slices_all_copies();
+            cycles += prot.retest_cycles_per_slice * rf.total_slices_all_copies();
             if (!rf.retest()) {
                 // Out of spares. A scheme that can mask a bad copy carries on, degraded; one that cannot
                 // has just learned that its register file is broken and stops.

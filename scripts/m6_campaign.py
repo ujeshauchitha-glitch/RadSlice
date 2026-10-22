@@ -57,8 +57,8 @@ def run_cell(cell, runs, seed):
            "--runs", str(runs), "--seed", str(seed), "--label", cell["part"]]
     for flag, key in (("--lambda-pc", "lam_pc"), ("--lambda-ir", "lam_ir"), ("--lambda-csr", "lam_csr"),
                       ("--lambda-mem", "lam_mem"), ("--lambda-infield", "lam_inf"), ("--burst", "burst"),
-                      ("--mem-scrub", "mem_scrub"), ("--retest", "retest")):
-        if cell.get(key):
+                      ("--mem-scrub", "mem_scrub"), ("--retest", "retest"), ("--retest-cost", "retest_cost")):
+        if cell.get(key) or (key == "retest_cost" and key in cell):
             cmd += [flag, repr(cell[key])]
     for flag, key in (("--control-tmr", "control_tmr"), ("--mem-ecc", "mem_ecc")):
         if cell.get(key):
@@ -99,6 +99,8 @@ def build_cells():
                 for rt in RETESTS:
                     cells.append(dict(part="B4", workload=w, config=c, rate=lam, retest=rt, lam_inf=lam,
                                       spares=(8, 0)))
+                cells.append(dict(part="B4", workload=w, config=c, rate=lam, retest=500, retest_cost=0,
+                                  lam_inf=lam, spares=(8, 0), label="free"))
         base = dict(lam_rf=m4.MID_RF, lam_alu=m4.MID_ALU, lam_pc=3e-8, lam_ir=3e-8, lam_csr=1e-8,
                     lam_mem=1e-10, lam_inf=3e-9, spares=(8, 0))
         for name, extra in (("rf+alu protection only", {}),
@@ -117,7 +119,7 @@ def row_for(cell, r, runs):
     row = dict(part=cell["part"], workload=cell["workload"], config=cell["config"], k=cell.get("k", 16),
                seed=cell.get("seed", ""), label=cell.get("label", ""), runs=n,
                burst=cell.get("burst", 1), control_tmr=int(bool(cell.get("control_tmr"))),
-               mem_ecc=int(bool(cell.get("mem_ecc"))), retest=cell.get("retest", 0),
+               mem_ecc=int(bool(cell.get("mem_ecc"))), retest=cell.get("retest", 0), retest_free=int(cell.get("retest_cost", 1) == 0),
                lam_rf=cell.get("lam_rf", 0.0), lam_alu=cell.get("lam_alu", 0.0),
                lam_pc=cell.get("lam_pc", 0.0), lam_ir=cell.get("lam_ir", 0.0), lam_csr=cell.get("lam_csr", 0.0),
                lam_mem=cell.get("lam_mem", 0.0), lam_infield=cell.get("lam_inf", 0.0),
@@ -272,12 +274,14 @@ def write_summary(rows, path, runs):
     # ---- B4
     L.append("## B4. Defects appearing after boot (stuck bit in a register-file slice, 8 spares per copy)\n")
     L.append("`retest` is the period, in instructions, of an online self-test and remap (0 = never); each costs "
-             f"{m4_retest_cycles()} model cycles per physical slice per copy.\n")
+             f"{m4_retest_cycles()} model cycles per physical slice per copy. If a retest runs out of spares, "
+             "parity-dup and TMR carry on degraded and the other schemes fail-stop.\n")
     L.append("| workload | scheme | rate per slice-cycle | retest | mean defects/run | mean retests/run | retests that ran out of spares | cycles |" + MIXHEAD[1:])
     L.append("|:--|:--|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for r in rows:
         if r["part"] == "B4":
-            L.append(f"| {r['workload']} | {r['config']} | {r['lam_infield']:g} | {r['retest']} | "
+            L.append(f"| {r['workload']} | {r['config']} | {r['lam_infield']:g} | "
+                     f"{r['retest']}{' (free)' if r['retest_free'] else ''} | "
                      f"{r['mean_infield']:.3f} | {r['mean_retests']:.1f} | {r['mean_retest_failures']:.1f} | "
                      f"{r['mean_cycles_over_baseline']:.2f}x | {mix(r)} |")
     L.append("")

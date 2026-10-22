@@ -15,6 +15,7 @@
 //          --control-tmr        (PC, instruction and CSR upsets are masked)
 //          --mem-ecc  --mem-scrub N    (SECDED on memory words, ledger cleared every N instructions)
 //          --retest N           (online register-file self-test and remap every N instructions)
+//          --retest-cost C      (model cycles the machine stalls per physical slice per copy; default 8, 0 = free)
 //          --spares RF ALU      (spares present without boot-time defects, for in-field defects)
 //
 // Run i uses the stream Rng(seed + i * golden-ratio), so results are reproducible and a
@@ -36,6 +37,7 @@ int main(int argc, char** argv) {
     FaultRates extra;
     bool control_tmr = false, mem_ecc = false;
     unsigned mem_scrub = 0, retest = 0;
+    unsigned long long retest_cost = 8;
     unsigned long long runs = 100, first = 0, seed = 1;
     ChipSpec chip;
     bool verbose = false;
@@ -61,6 +63,7 @@ int main(int argc, char** argv) {
         else if (a == "--control-tmr") control_tmr = true;
         else if (a == "--mem-ecc") mem_ecc = true;
         else if (a == "--mem-scrub") mem_scrub = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        else if (a == "--retest-cost") retest_cost = std::strtoull(val().c_str(), nullptr, 0);
         else if (a == "--retest") retest = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
         else if (a == "--runs") runs = std::strtoull(val().c_str(), nullptr, 0);
         else if (a == "--first-run") first = std::strtoull(val().c_str(), nullptr, 0);
@@ -93,6 +96,7 @@ int main(int argc, char** argv) {
     prot.scrub_period = scrub;
     prot.control_tmr = control_tmr; prot.mem_ecc = mem_ecc;
     prot.mem_scrub_period = mem_scrub; prot.retest_period = retest;
+    prot.retest_cycles_per_slice = retest_cost;
 
     if (elf.empty()) { std::cerr << "need --elf\n"; return 2; }
     const Workload w(elf);

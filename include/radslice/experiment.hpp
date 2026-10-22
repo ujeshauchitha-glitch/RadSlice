@@ -63,9 +63,10 @@ struct Protection {
     // `kRetestCyclesPerSlice` model cycles per physical slice per copy. If a copy has run out of spares
     // the retest fails: parity-dup and TMR carry on (the vote still masks), the others fail-stop.
     unsigned retest_period = 0;
+    u64      retest_cycles_per_slice = 8;   // 4 patterns x (write + read), the machine stalls for it; 0 = free (background)
 };
 
-constexpr u64 kRetestCyclesPerSlice = 8;   // 4 patterns x (write + read); tier C
+constexpr u64 kRetestCyclesPerSlice = 8;   // the default for Protection::retest_cycles_per_slice; tier C
 
 struct FaultRates {
     double rf_per_bit_per_cycle = 0.0;
