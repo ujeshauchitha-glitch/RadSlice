@@ -8,6 +8,13 @@
 //          --runs N --first-run I --seed S --k 8|16|32 --label TEXT
 //          --defects P RF_SPARES ALU_SPARES   (permanent defects with the M3 self-test)
 //          --verbose   (one line per run)
+//   G15 fault classes (per bit per model cycle, all tier C):
+//          --lambda-pc R  --lambda-ir R  --lambda-csr R  --lambda-mem R
+//          --lambda-infield R   (a stuck-bit defect appears per register-file slice per cycle)
+//          --burst N            (adjacent bits flipped by one register-file or memory upset)
+//          --control-tmr        (PC, instruction and CSR upsets are masked)
+//          --mem-ecc  --mem-scrub N    (SECDED on memory words, ledger cleared every N instructions)
+//          --retest N           (online register-file self-test and remap every N instructions)
 //
 // Run i uses the stream Rng(seed + i * golden-ratio), so results are reproducible and a
 // campaign can be split across processes with --first-run / --runs. Upset rates are
@@ -25,6 +32,9 @@ int main(int argc, char** argv) {
     std::string elf, label, rf = "none", alu = "none";
     unsigned scrub = 0, k = 16;
     double lam_rf = 0, lam_alu = 0;
+    FaultRates extra;
+    bool control_tmr = false, mem_ecc = false;
+    unsigned mem_scrub = 0, retest = 0;
     unsigned long long runs = 100, first = 0, seed = 1;
     ChipSpec chip;
     bool verbose = false;
@@ -41,6 +51,16 @@ int main(int argc, char** argv) {
         else if (a == "--scrub") scrub = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
         else if (a == "--lambda-rf") lam_rf = std::strtod(val().c_str(), nullptr);
         else if (a == "--lambda-alu") lam_alu = std::strtod(val().c_str(), nullptr);
+        else if (a == "--lambda-pc") extra.pc_per_bit_per_cycle = std::strtod(val().c_str(), nullptr);
+        else if (a == "--lambda-ir") extra.ir_per_bit_per_cycle = std::strtod(val().c_str(), nullptr);
+        else if (a == "--lambda-csr") extra.csr_per_bit_per_cycle = std::strtod(val().c_str(), nullptr);
+        else if (a == "--lambda-mem") extra.mem_per_bit_per_cycle = std::strtod(val().c_str(), nullptr);
+        else if (a == "--lambda-infield") extra.infield_per_slice_per_cycle = std::strtod(val().c_str(), nullptr);
+        else if (a == "--burst") extra.burst = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        else if (a == "--control-tmr") control_tmr = true;
+        else if (a == "--mem-ecc") mem_ecc = true;
+        else if (a == "--mem-scrub") mem_scrub = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
+        else if (a == "--retest") retest = static_cast<unsigned>(std::strtoul(val().c_str(), nullptr, 0));
         else if (a == "--runs") runs = std::strtoull(val().c_str(), nullptr, 0);
         else if (a == "--first-run") first = std::strtoull(val().c_str(), nullptr, 0);
         else if (a == "--seed") seed = std::strtoull(val().c_str(), nullptr, 0);
@@ -67,6 +87,8 @@ int main(int argc, char** argv) {
     else if (alu == "tmr") prot.alu = AluProtection::Tmr;
     else { std::cerr << "bad --alu\n"; return 2; }
     prot.scrub_period = scrub;
+    prot.control_tmr = control_tmr; prot.mem_ecc = mem_ecc;
+    prot.mem_scrub_period = mem_scrub; prot.retest_period = retest;
 
     if (elf.empty()) { std::cerr << "need --elf\n"; return 2; }
     const Workload w(elf);
@@ -80,7 +102,10 @@ int main(int argc, char** argv) {
     Rng brng(1);
     const RunResult base = w.run(g, Protection{}, FaultRates{}, clean, ForcedFault{}, brng);
 
-    FaultRates rates{lam_rf, lam_alu};
+    FaultRates rates = extra;
+    rates.rf_per_bit_per_cycle = lam_rf;
+    rates.alu_per_bit_per_beat = lam_alu;
+    double sum_pc = 0, sum_ir = 0, sum_csr = 0, sum_mem = 0, sum_inf = 0, sum_retest = 0, sum_masked = 0;
     unsigned long long count[kNumOutcomes] = {};
     unsigned long long hang = 0, crash = 0, diverged = 0, with_upset = 0;
     double sum_cycles = 0, sum_rf_up = 0, sum_alu_up = 0, sum_corr = 0;
@@ -92,7 +117,11 @@ int main(int argc, char** argv) {
         ++count[static_cast<int>(r.outcome)];
         hang += r.hang; crash += r.crash;
         diverged += r.first_divergence >= 0;
-        with_upset += (r.rf_upsets + r.alu_upsets) > 0;
+        with_upset += (r.rf_upsets + r.alu_upsets + r.pc_upsets + r.ir_upsets + r.csr_upsets + r.mem_upsets) > 0;
+        sum_pc += static_cast<double>(r.pc_upsets); sum_ir += static_cast<double>(r.ir_upsets);
+        sum_csr += static_cast<double>(r.csr_upsets); sum_mem += static_cast<double>(r.mem_upsets);
+        sum_inf += static_cast<double>(r.infield_defects); sum_retest += static_cast<double>(r.retests);
+        sum_masked += static_cast<double>(r.control_masked);
         if (r.outcome != Outcome::BootFailure) {
             sum_cycles  += static_cast<double>(r.model_cycles);
             ++ran;
@@ -110,7 +139,10 @@ int main(int argc, char** argv) {
     std::cout << "label,workload,rf,alu,scrub,lambda_rf,lambda_alu,k,defects_p,rf_spares,alu_spares,"
                  "runs,correct,detected_recovered,detected_unrecovered,sdc,hang_crash,boot_failure,"
                  "hang,crash,diverged,with_upset,mean_rf_upsets,mean_alu_upsets,mean_corrections,"
-                 "golden_instret,baseline_cycles,mean_cycles\n";
+                 "golden_instret,baseline_cycles,mean_cycles,"
+                 "lambda_pc,lambda_ir,lambda_csr,lambda_mem,lambda_infield,burst,control_tmr,mem_ecc,mem_scrub,retest,"
+                 "mean_pc_upsets,mean_ir_upsets,mean_csr_upsets,mean_mem_upsets,mean_infield_defects,mean_retests,"
+                 "mean_control_masked\n";
     std::cout << label << "," << elf << "," << rf << "," << alu << "," << scrub << "," << lam_rf << ","
               << lam_alu << "," << k << "," << (chip.defects ? chip.p : 0.0) << "," << chip.rf_spares
               << "," << chip.alu_spares << "," << runs;
@@ -118,6 +150,11 @@ int main(int argc, char** argv) {
     std::cout << "," << hang << "," << crash << "," << diverged << "," << with_upset << ","
               << sum_rf_up / n << "," << sum_alu_up / n << "," << sum_corr / n << "," << g.instret
               << "," << base.model_cycles << "," << (ran ? sum_cycles / static_cast<double>(ran) : 0.0)
-              << "\n";
+              << "," << extra.pc_per_bit_per_cycle << "," << extra.ir_per_bit_per_cycle << ","
+              << extra.csr_per_bit_per_cycle << "," << extra.mem_per_bit_per_cycle << ","
+              << extra.infield_per_slice_per_cycle << "," << (extra.burst ? extra.burst : 1) << ","
+              << (control_tmr ? 1 : 0) << "," << (mem_ecc ? 1 : 0) << "," << mem_scrub << "," << retest
+              << "," << sum_pc / n << "," << sum_ir / n << "," << sum_csr / n << "," << sum_mem / n
+              << "," << sum_inf / n << "," << sum_retest / n << "," << sum_masked / n << "\n";
     return 0;
 }
