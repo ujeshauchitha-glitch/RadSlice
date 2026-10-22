@@ -213,6 +213,115 @@ position, no extra for read and write ports (swept). The cost of the remap table
 self-test logic is a swept tier-C parameter. Silicon outside the register file and the ALU is
 ignored, so "relative cost" is for the parts that sparing affects.
 
+## G11. Does the logic style (n-type only, or complementary) change the cost and yield picture?
+MoS2 transistors are naturally n-type and good p-type 2D devices are hard to make, so the logic style of a
+real MoS2 chip is a design decision, not a detail. Every transistor count used in G10 (144 per 8-bit
+register block, 27 per adder bit, 27 per selection module) comes from the paper's own cell library and so
+carries whatever logic style that library uses. The study has never said what that style is.
+**Claims to test.**
+1. The paper's own text and extended data say which logic style its cell library uses; this is read from
+   the paper, not recalled.
+2. If the style were changed to an n-only (pseudo-CMOS) one, each gate costs more transistors, so the
+   register block, adder and multiplexer all grow; the G10 optimum (8 regions) and the K ordering are
+   re-derived with the scaled counts and either hold or move.
+3. Per-transistor yield is not independent of style: more transistors per function lowers function yield
+   (the paper's 8-bit and 64-bit yields imply one per-transistor yield), so a bigger style costs yield as
+   well as area. The size of that second effect is computed, not assumed.
+**Answered by.** Reading the paper; a style multiplier on every transistor count in `cost_model.py`;
+function yield re-derived from the implied per-transistor yield; the G10 study re-run across the multiplier.
+**Wrong if.** The paper's library is already n-only or complementary in the style being compared, so there
+is nothing to change; or the conclusions are insensitive to any multiplier in a plausible range, in which
+case the result is "insensitive", recorded as such.
+**Assumptions.** The multiplier is tier C unless a source gives the transistor count of the alternative
+cell; any source used is named. Function-level timing and power (pseudo-CMOS is slower and burns static
+power) are not modelled.
+
+## G12. Which manufacturing-process mechanisms support the defect model used here?
+The study uses one permanent-defect model (a slice is good with probability p, independently or clustered;
+a defective slice has one stuck output bit) and one yield number (0.71 for an 8-bit register). The process
+literature names several different mechanisms (grain boundaries, contact variability, threshold-voltage
+spread, growth and transfer damage, encapsulation effects), and each predicts a different structure.
+**Claims to test.**
+1. Which mechanisms are reported for wafer-scale MoS2, with sources, and which of them predict clustering,
+   a die-to-die rate change, a gradient across the wafer, or a failure that is not a stuck bit.
+2. Whether the stuck-one-bit fault is the right fault type: a mechanism that makes a transistor slow or
+   leaky rather than dead would produce faults the boot self-test as written cannot find.
+3. Whether any published process choice has a yield cost large enough to be a design input (for example an
+   encapsulation layer that lowers yield), and what the same layer does to radiation tolerance.
+**Answered by.** A literature table in `docs/results.md` (each row: mechanism, source, what it predicts,
+whether RadSlice models it) and, where a prediction is quantitative and sourced, a tier-B/C parameter and a
+model extension.
+**Wrong if.** The literature found does not distinguish between mechanisms at all (then the table says
+"not distinguishable from these sources" and the defect model is unchanged).
+
+## G13. What stands between MoS2 and use in space, and which of those can this model represent?
+MoS2 is a spacecraft lubricant, but that is a coating property; a transistor needs a near-perfect one- to
+few-layer film, so the lubricant record says little about electronics. The barriers named in the
+literature are: total ionizing dose in the gate stack (threshold drift), displacement damage, heavy ions,
+single-event upsets, vacuum, atomic oxygen and thermal cycling, process variability, and the missing p-type
+device.
+**Claims to test.**
+1. The literature table (sources named) separates barriers that RadSlice can turn into a fault type or a
+   parameter from those that need devices and beam time.
+2. For the ones it can: a dose-dependent upset rate and in-field permanent defects (defects that arrive
+   after the boot self-test) change the result of the protection schemes. Boot-time sparing alone cannot
+   repair them, so the test is whether periodic re-test and remap restore correctness and at what cost.
+3. At rates inside the ranges reported in the sources, which barrier first breaks correct execution
+   (a ranking, not a probability).
+**Answered by.** The G15 fault classes (in-field defects, dose scaling) in the M4 harness; sweeps.
+**Wrong if.** The sources do not give enough to place any rate in a range (then every rate stays tier C and
+the ranking is recorded as conditional on rates that are guesses).
+**Assumptions.** Device-level radiation results (single transistors) transfer to circuit-level behaviour
+only through tier-C factors; the model has no explicit gate-dielectric physics.
+
+## G14. Do the spares and routing survive their own defects?
+G10 costed the routing but left it fault-free, while its transistors fail at the same per-transistor rate as
+any other: 79,000 routing transistors in the cheapest register-file design.
+**Claims to test.**
+1. A spare is a slice plus its private routing (tag, compare, multiplexer inputs). The routing of a spare
+   fails with that spare, so a spare's own yield is p times the routing yield, and the number of spares
+   needed rises. The effect is large: about 414 private transistors per spare at the G10 optimum lowers a
+   spare's yield from 0.71 to about 0.27 at the register-implied per-transistor yield.
+2. The routing shared by all spares (hit combine, final lane select, remap-table control) is a single point
+   of failure unless replicated; its size is small, but the replication needed has a cost.
+3. With both effects counted, the cheapest design differs from G10's (fewer regions? more spares?), and may
+   not exist at the register-implied per-transistor yield.
+**Answered by.** The exact model with unequal primary and spare yields, plus a shared-logic factor, and the
+G10 cost search repeated for the two per-transistor yields (register-implied, isolated-device).
+**Wrong if.** The changes to the optimum are within a few percent (then G10 stands and this is recorded as a
+check passed).
+**Assumptions.** Which transistors are spare-private and which shared is a design choice made explicit in
+the cost model (tier C); independent defects (clustering of routing is not modelled).
+
+## G15. More fault classes: multi-bit upsets, control state, memory, in-field defects
+M4 injects single-bit upsets into register-file bits and ALU output bits only. A flip in the PC, a fetched
+instruction, a CSR, or memory is not covered, and neither are multi-bit events or defects that arrive after
+manufacturing.
+**Claims to test.**
+1. Faults in control state (PC, instruction fetch) dominate silent failures at equal per-bit rate, because
+   a flipped PC or opcode usually crashes rather than computes a wrong value.
+2. Memory upsets matter if memory is not protected: a bit flip in code or data persists until overwritten.
+   A SECDED code over 64-bit words removes single flips; double flips become detected stops.
+3. A multi-bit burst defeats single-error protection (parity, TMR with a shared event, SECDED); the burst
+   size at which each scheme stops working is found by sweep.
+4. In-field stuck-at defects (dose-induced, tier C) cannot be repaired by the boot self-test; a periodic
+   re-test and remap is needed, and the harness finds how often.
+**Answered by.** New injectors in `experiment.cpp` with deterministic tests per injector, then a campaign
+across K and several seeds (M6).
+**Wrong if.** Control-state faults turn out to be a small share of failures at equal rate (claim 1 false;
+recorded), or bursts change nothing (claim 3 false).
+**Assumptions.** Rates are per bit per model cycle and tier C; the control-state bit counts (64 PC bits, 32
+instruction bits) are fixed by the architecture; CSR coverage is limited to those the workloads use.
+
+## G16. Are the M4 conclusions robust to seeds, and to K?
+M4 used one seed per cell and K = 16. Wilson intervals cover the sampling noise within a seed, not the
+variation from one seed to another, and K affects both cycle cost and fault exposure.
+**Claims to test.** Rerunning with several independent seeds and K in {8, 16, 32} leaves the ranking of
+protection schemes unchanged and the success probabilities within their stated intervals.
+**Answered by.** The M6 campaign with the cycle-overhead and success probability plotted together.
+**Wrong if.** A ranking flips between seeds, or between K values, at a rate where the intervals say it
+should not (then the M4 conclusion is withdrawn or restricted).
+
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with
 MoS2 logic is needed to avoid overstating the benefit.
