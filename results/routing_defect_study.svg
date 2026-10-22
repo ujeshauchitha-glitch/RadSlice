@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 330" font-family="system-ui, sans-serif"><rect width="560" height="330" fill="white"/><g fill="#222"><text x="40" y="22" font-size="14" font-weight="600">Register file: silicon per good file vs routing transistor yield</text>
+<line x1="40" x2="480" y1="282.0" y2="282.0" stroke="#ddd"/><text x="34" y="286.0" font-size="10" text-anchor="end">1</text>
+<line x1="40" x2="480" y1="204.0" y2="204.0" stroke="#ddd"/><text x="34" y="208.0" font-size="10" text-anchor="end">10</text>
+<line x1="40" x2="480" y1="126.0" y2="126.0" stroke="#ddd"/><text x="34" y="130.0" font-size="10" text-anchor="end">100</text>
+<text x="40.0" y="298" font-size="9" text-anchor="middle">1</text>
+<text x="113.33333333333333" y="298" font-size="9" text-anchor="middle">0.99999</text>
+<text x="186.66666666666666" y="298" font-size="9" text-anchor="middle">0.9999</text>
+<text x="260.0" y="298" font-size="9" text-anchor="middle">0.9996</text>
+<text x="333.3333333333333" y="298" font-size="9" text-anchor="middle">0.9992</text>
+<text x="406.6666666666667" y="298" font-size="9" text-anchor="middle">0.9985</text>
+<text x="480.0" y="298" font-size="9" text-anchor="middle">0.99762</text>
+<text x="260.0" y="322" font-size="11" text-anchor="middle">per-transistor yield q of the routing</text>
+<path d="M40.0,233.3 L113.3,233.2 L186.7,232.0 L260.0,228.1 L333.3,222.9 L406.7,213.7 L480.0,202.1" fill="none" stroke="#0f9d58" stroke-width="1.8"/><text x="48" y="60" font-size="10" fill="#0f9d58">tagged, spares' private routing only</text>
+<path d="M40.0,233.1 L113.3,232.6 L186.7,231.2 L260.0,226.7 L333.3,220.8 L406.7,210.0 L480.0,195.8" fill="none" stroke="#1f6feb" stroke-width="1.8"/><text x="48" y="73" font-size="10" fill="#1f6feb">tagged, plus shared block</text>
+<path d="M40.0,192.1 L113.3,191.4 L186.7,186.9 L260.0,172.5 L333.3,155.0" fill="none" stroke="#c62828" stroke-width="1.8"/><text x="48" y="86" font-size="10" fill="#c62828">per-position, plus shared block</text></g><text x="554" y="324" font-size="9" text-anchor="end" fill="#666">exact model, p = 0.71, independent defects, tier-C costs. Not a measurement.</text></svg>
