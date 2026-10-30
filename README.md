@@ -63,6 +63,12 @@ Clustered defects (G9; needs `radslice_yield`, about 35 s):
 python scripts/cluster_study.py
 ```
 
+A five-minute tour for showing the project to someone (about 20 s; needs the build and the workloads):
+
+```bash
+python scripts/demo.py
+```
+
 Spare-routing cost and the K trade-off (G10; exact models, about 20 s):
 
 ```bash
