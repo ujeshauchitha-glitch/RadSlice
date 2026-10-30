@@ -322,6 +322,43 @@ protection schemes unchanged and the success probabilities within their stated i
 **Wrong if.** A ranking flips between seeds, or between K values, at a rate where the intervals say it
 should not (then the M4 conclusion is withdrawn or restricted).
 
+## G17. Does a VLIW organisation with four parallel units buy speed, and what does it do to yield?
+The slice-serial design pays cycles for fewer transistors (about 1.6x to 4x at K = 32 to 8 in the M2 model). A
+VLIW-style organisation fetches one wide word that bundles several operations and runs them on parallel units;
+the compiler, not the hardware, decides what runs together. The proposal here: four parallel K-bit units, whose
+purpose is speed, and which are also the spares, so that a unit found dead at the boot self-test costs width
+instead of rejecting the chip.
+**Claims to test.**
+1. Four units speed up the real workloads, but by much less than 4x, because a trace of dependent operations
+   cannot be spread over four units. The speedup is measured on the three workloads and the riscv-tests with
+   the dependences read from the instructions, and compared for K = 8, 16, 32.
+2. Because the units are also spares, a defective unit lowers the width (4, 3, 2 or 1 units) rather than
+   rejecting the chip. Against one active unit plus three dedicated spares (all the same silicon), the
+   expected throughput per fabricated chip is higher, and against four units that must all work (no sparing),
+   the fraction of chips that work is higher. The comparison is expected throughput per unit of silicon.
+3. The register file is what makes width expensive: every extra unit needs two read ports and one write port,
+   and the spare-routing cost of G10 and G14 grows with the number of ports, so the register file may cost more
+   than the units gain. The study finds where that crossover is, as a function of the per-transistor yield of
+   routing.
+4. Which tier-C assumptions flip the answer: how many operations the compiler can bundle (list scheduling
+   within a basic block, with and without reordering), the cost of the front end per bundle, the port count
+   per unit, and the yield per unit.
+**Answered by.** A static scheduler over the real instruction traces (dependences, memory order, branches end
+a block), producing cycles for 1 to 4 units; the exact distribution of good units from the per-unit yield;
+the cost model with ports scaled by width; the joint figure of merit expected throughput per silicon.
+**Wrong if.**
+- the speedup on the real workloads is close to 4x (then the dependence structure is no obstacle, and the
+  claim that it is would be false);
+- the expected throughput of "four units that are also spares" is not above one active plus three spares
+  (then the dual use of the units buys nothing);
+- the register file ports cost makes the best design a single unit under every assumption tried (claim 3
+  then settles the question the other way and is reported as such).
+**Assumptions (tier C).** Static scheduling of the dynamic trace (the compiler is assumed to see the path that
+was taken, an optimistic bound on what it can do from code alone); true data dependences, register
+anti- and output dependences and memory order are kept, with no register renaming or memory disambiguation;
+one load/store and one branch resource per bundle; the front end issues one bundle per `base` cycles, as the
+M2 model charges `base` cycles per instruction; units are the single-unit K-bit organisation of G10.
+
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with
 MoS2 logic is needed to avoid overstating the benefit.
