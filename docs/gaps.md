@@ -359,6 +359,27 @@ anti- and output dependences and memory order are kept, with no register renamin
 one load/store and one branch resource per bundle; the front end issues one bundle per `base` cycles, as the
 M2 model charges `base` cycles per instruction; units are the single-unit K-bit organisation of G10.
 
+## G18. Can the design run as real hardware on a student-priced FPGA, and does it match the golden model?
+The study so far is software. An FPGA cannot show MoS2 behaviour (it is silicon), so it cannot answer any device
+question. What it can show is that the architecture (slice-serial datapath, spare units, remap, parity, voting,
+the VLIW issue of G17) is implementable and cycle-exact against the golden model, and it makes fault injection
+fast and visible.
+**Target.** Terasic DE2-115 (Intel Cyclone IV E, about 114,000 logic elements), built with Quartus Prime Lite.
+The Verilog is kept board-independent (one wrapper per board); an Arty A7-100T is the fallback and needs only a
+new wrapper and constraints. Simulation and synthesis checks use Verilator, Icarus Verilog and Yosys.
+**Claims to test.**
+1. A slice-serial RV64I core with K = 8/16/32 and the same retire order as the golden core passes the riscv-tests
+   in simulation, and an instruction-by-instruction comparison with the golden model shows no difference.
+2. The hardware beat count per instruction equals the model's (`SlicedAlu::beats_for`), so the cycle estimates of
+   M2 are what the hardware does, not a separate story.
+3. The core and its spares fit the DE2-115 with room for the fault-injection registers.
+**Wrong if.** the hardware and the model disagree on any instruction result or on beats (then the model, not the
+hardware, is corrected and the earlier cycle numbers are re-run); or the design does not fit.
+**Not claimed.** Anything about MoS2, radiation or yield. An FPGA run is not a measurement of the chip.
+**Order.** (1) one slice unit and the slice-serial ALU, exhaustively checked against `alu_reference`; (2) the
+register file with parity and remap; (3) the in-order core, lockstep with the golden model; (4) spares and the
+boot self-test; (5) the wide issue of G17; (6) the board wrapper and fault-injection switches.
+
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with
 MoS2 logic is needed to avoid overstating the benefit.

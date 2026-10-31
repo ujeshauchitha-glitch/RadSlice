@@ -601,7 +601,8 @@ and the beat counts match `radslice_run`, which is the check that the tool measu
 **Failures and limits recorded.** My first version of the trace tool ran past the end of each program (it did not
 look for the test-finished write that `Cpu::run` looks for) and scheduled the idle spin loop; it reported no speedup
 at all for chacha20 and coremark_like. The tests did not catch it; comparing the instruction count with
-`radslice_run` did, and the corrected numbers above are from the fixed tool. Not modelled: the front end that
+`radslice_run` did, and the corrected numbers above are from the fixed tool. The gap text (G17) assumed one load/store and one branch resource per bundle; the scheduler does not limit them (any
+unit can take a load, store or branch), which flatters the wider designs by an amount not measured here. Not modelled: the front end that
 fetches a wide word (a bundle's instruction fetch and decode), branch prediction, memory latency beyond one base
 cycle, register renaming, multiplication and floating point (they end a block here, which understates the speedup),
 and the routing between units and the register file as its own defect source. The unit yield is p^(K/8) with the
