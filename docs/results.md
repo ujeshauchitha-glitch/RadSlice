@@ -684,8 +684,8 @@ core's retirement stream with it line by line. `bash scripts/run-core-lockstep.s
   unexplained.
 - **The fixed cost is about 20.7 cycles per instruction, not the 1 the model charged.** It is one fetch, eight beats to read
   the register file, eight to write back, and a few control cycles, with no overlap between them. So in this
-  implementation the ALU beats are only about 11% of the cycles at K = 16 (5% at K = 32, 20% at K = 8), and going from K = 8
-  to K = 32 saves only about 15% of the cycles. The M2 trade-off between silicon and cycles was computed with a base of 1
+  implementation the ALU beats are only about 11% of the cycles at K = 16 (6% at K = 32, 21% at K = 8), and going from K = 8
+  to K = 32 saves only 15% (chacha20) to 18% (coremark_like) of the cycles. The M2 trade-off between silicon and cycles was computed with a base of 1
   and is therefore too favourable to small K for this microarchitecture. A design that overlaps the register file with the ALU
   would change this; this core does not.
 - **G17 survives the larger base:** rerunning the scheduler with a base of 20 gives a four-unit speedup of 1.65 to 1.83 on the
