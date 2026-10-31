@@ -660,6 +660,44 @@ operation sequences, replayed one byte at a time, match the model on all 22,690 
   as shown.
 - **Not done:** block-RAM mapping, timing, any Quartus run.
 
+## G18, step 4: the in-order RV64I core matches the golden emulator instruction by instruction
+
+`rtl/rv64i_core.v`: an in-order, multi-cycle core made of the verified parts (one K-bit slice unit reused per beat, and the
+byte-per-beat register file with remap and parity). It runs RV64I (32-bit encodings; no CSRs, M, A, F, D or C) and uses the
+ALU where the golden core does (arithmetic and logic, branch comparisons, data addresses, the JALR target); LUI, AUIPC, JAL and
+the link value use a plain adder. `radslice_trace` writes, from the golden core, one line per retired instruction (pc,
+instruction word, register written and its value, store address/size/data, next pc); `rtl/tb/tb_rv64i_core.v` compares the
+core's retirement stream with it line by line. `bash scripts/run-core-lockstep.sh` reproduces the table.
+
+| workload | K | instructions compared | cycles | cycles per instruction | result |
+|---|---|---|---|---|---|
+| chacha20 | 8 | 47,993 | 1,249,100 | 26.02 | all match |
+| chacha20 | 16 | 47,993 | 1,120,734 | 23.35 | all match |
+| chacha20 | 32 | 47,993 | 1,056,563 | 22.01 | all match |
+| coremark_like | 8 | 43,376 | 1,148,437 | 26.47 | all match |
+| coremark_like | 16 | 43,376 | 1,009,219 | 23.26 | all match |
+| coremark_like | 32 | 43,376 | 939,598 | 21.66 | all match |
+
+- **The hardware's cycles are the model's beats plus a fixed cost.** Subtracting the model's ALU beats from the measured
+  cycles leaves 992,368 (chacha20) and 870,001 (coremark_like) at both K = 8 and K = 16, to the cycle. At K = 32 the
+  remainder is 12 cycles lower in both workloads; I have not found why (0.001% of the total), and it is recorded as
+  unexplained.
+- **The fixed cost is about 20.7 cycles per instruction, not the 1 the model charged.** It is one fetch, eight beats to read
+  the register file, eight to write back, and a few control cycles, with no overlap between them. So in this
+  implementation the ALU beats are only about 11% of the cycles at K = 16 (5% at K = 32, 20% at K = 8), and going from K = 8
+  to K = 32 saves only about 15% of the cycles. The M2 trade-off between silicon and cycles was computed with a base of 1
+  and is therefore too favourable to small K for this microarchitecture. A design that overlaps the register file with the ALU
+  would change this; this core does not.
+- **G17 survives the larger base:** rerunning the scheduler with a base of 20 gives a four-unit speedup of 1.65 to 1.83 on the
+  two workloads (1.56 to 1.74 with base 1), so the "about 1.7x, not 4x" finding does not depend on that parameter.
+- **Failures on the way:** the first testbench never finished compiling (a combinational block reading a 2 MiB array makes the
+  simulator build an entry per element); a stale-wire read in the comparator made the first instruction look wrong; a 4-bit
+  register field truncated register numbers above 15; and the first script run exited silently because the OSS CAD
+  Suite's runtime libraries shadowed the ones the trace tool needs. None was a core bug; the core passed once the
+  testbench was right.
+- **Not done:** instruction-mix coverage beyond two programs (no rv64ui riscv-tests: they need CSRs and trap handling); faults
+  in the lockstep; M, A, F, D, C and CSRs; synthesis of the whole core, timing, and any board run.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
