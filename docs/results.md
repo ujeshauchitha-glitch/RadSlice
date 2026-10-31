@@ -608,6 +608,24 @@ cycle, register renaming, multiplication and floating point (they end a block he
 and the routing between units and the register file as its own defect source. The unit yield is p^(K/8) with the
 slice yield p = 0.71 (tier B); K = 32 units are therefore only 25% likely to be good, which drives the K = 32 rows.
 
+## G18, step 1: the slice-serial ALU in Verilog matches the model
+
+`rtl/slice_unit.v` (one K-bit slice unit) and `rtl/sliced_alu.v` (one unit reused once per beat, single-unit
+organisation of G10). `bash scripts/run-rtl-tests.sh` (Icarus Verilog) feeds `rtl/tb/tb_sliced_alu.v` the vectors written
+by `radslice_alu_vectors`: 15 operations over 23 edge values squared plus 20,000 random pairs, 27,935 vectors per K.
+The model generating them is checked against the golden core's `alu_reference` first (no difference at K = 8, 16 or 32).
+
+- **Result:** the hardware's result and its number of busy cycles equal the model's result and `beats_for` on every
+  vector at K = 8, 16 and 32. The beat count is therefore the hardware's cycle count, not a separate assumption.
+- **Does the test bite?** Three deliberate breaks (arithmetic shift fill removed, carry not propagated, left funnel
+  shifted by one extra bit) made 1,392, 4,910 and 3,378 of 27,935 vectors fail at K = 16.
+- **Size, a generic estimate:** Yosys with 4-input LUTs gives 1,320 (K = 8), 1,539 (K = 16) and 1,953 (K = 32) LUTs and
+  205 flip-flops. The DE2-115 has about 114,000 logic elements, so the ALU alone is 1% to 2% of it. Quartus will
+  report different numbers; these only say the unit is small.
+- **Not done:** Verilator lint (the OSS CAD Suite's wrapper needs a Perl module this machine lacks), timing, the register
+  file, the core, spares, or any board run. Only the ALU is verified against vectors; nothing about instruction
+  fetch or the pipeline is.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
