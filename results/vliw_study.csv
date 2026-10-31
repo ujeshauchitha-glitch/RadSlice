@@ -1,0 +1,58 @@
+part,chip_yield,design,k,merit,mode,port_area,silicon,speedup_1,speedup_2,speedup_3,speedup_4,throughput,workload
+E1,,,8,,inorder,,,1.0000,1.2261,1.3130,1.3130,,alu_mix
+E1,,,8,,reorder,,,1.0000,1.5440,1.6843,1.6843,,alu_mix
+E1,,,16,,inorder,,,1.0000,1.2270,1.3134,1.3134,,alu_mix
+E1,,,16,,reorder,,,1.0000,1.5542,1.6955,1.6955,,alu_mix
+E1,,,32,,inorder,,,1.0000,1.2283,1.3140,1.3140,,alu_mix
+E1,,,32,,reorder,,,1.0000,1.5694,1.7121,1.7121,,alu_mix
+E1,,,8,,inorder,,,1.0000,1.4560,1.6052,1.6507,,chacha20
+E1,,,8,,reorder,,,1.0000,1.5301,1.6842,1.7506,,chacha20
+E1,,,16,,inorder,,,1.0000,1.4564,1.6058,1.6511,,chacha20
+E1,,,16,,reorder,,,1.0000,1.5307,1.6829,1.7401,,chacha20
+E1,,,32,,inorder,,,1.0000,1.4568,1.6065,1.6515,,chacha20
+E1,,,32,,reorder,,,1.0000,1.5315,1.6812,1.7262,,chacha20
+E1,,,8,,inorder,,,1.0000,1.3687,1.4169,1.5338,,coremark_like
+E1,,,8,,reorder,,,1.0000,1.6528,1.6930,1.6932,,coremark_like
+E1,,,16,,inorder,,,1.0000,1.3843,1.4333,1.5605,,coremark_like
+E1,,,16,,reorder,,,1.0000,1.6657,1.7091,1.7093,,coremark_like
+E1,,,32,,inorder,,,1.0000,1.4071,1.4573,1.6002,,coremark_like
+E1,,,32,,reorder,,,1.0000,1.6845,1.7324,1.7327,,coremark_like
+E2,0.70290,"1 unit, no spare",8,1.0000,inorder,,37080.0,,,,,0.70290,
+E2,0.98300,1 active + 3 spares,8,1.3745,inorder,,37728.0,,,,,0.98300,
+E2,0.97415,"4 active, graceful",8,1.0172,inorder,,70905.6,,,,,1.36728,
+E2,0.24931,"4 active, all must work",8,0.2781,inorder,,70905.6,,,,,0.37376,
+E2,0.70290,"1 unit, no spare",8,1.0000,reorder,,37080.0,,,,,0.70290,
+E2,0.98300,1 active + 3 spares,8,1.3745,reorder,,37728.0,,,,,0.98300,
+E2,0.97415,"4 active, graceful",8,1.1715,reorder,,70905.6,,,,,1.57456,
+E2,0.24931,"4 active, all must work",8,0.3171,reorder,,70905.6,,,,,0.42617,
+E2,0.49906,"1 unit, no spare",16,1.0000,inorder,,37296.0,,,,,0.49906,
+E2,0.93013,1 active + 3 spares,16,1.8012,inorder,,38592.0,,,,,0.93013,
+E2,0.92175,"4 active, graceful",16,1.2467,inorder,,71769.6,,,,,1.19725,
+E2,0.06335,"4 active, all must work",16,0.0995,inorder,,71769.6,,,,,0.09556,
+E2,0.49906,"1 unit, no spare",16,1.0000,reorder,,37296.0,,,,,0.49906,
+E2,0.93013,1 active + 3 spares,16,1.8012,reorder,,38592.0,,,,,0.93013,
+E2,0.92175,"4 active, graceful",16,1.4111,reorder,,71769.6,,,,,1.35516,
+E2,0.06335,"4 active, all must work",16,0.1131,reorder,,71769.6,,,,,0.10865,
+E2,0.25158,"1 unit, no spare",32,1.0000,inorder,,37728.0,,,,,0.25158,
+E2,0.68358,1 active + 3 spares,32,2.5425,inorder,,40320.0,,,,,0.68358,
+E2,0.67742,"4 active, graceful",32,1.5887,inorder,,73497.6,,,,,0.77861,
+E2,0.00409,"4 active, all must work",32,0.0127,inorder,,73497.6,,,,,0.00623,
+E2,0.25158,"1 unit, no spare",32,1.0000,reorder,,37728.0,,,,,0.25158,
+E2,0.68358,1 active + 3 spares,32,2.5425,reorder,,40320.0,,,,,0.68358,
+E2,0.67742,"4 active, graceful",32,1.7145,reorder,,73497.6,,,,,0.84028,
+E2,0.00409,"4 active, all must work",32,0.0144,reorder,,73497.6,,,,,0.00705,
+E3,,"4 active, graceful",8,2.2216,reorder,0.0,,,,,,,
+E3,,"4 active, graceful",8,1.5362,reorder,0.15,,,,,,,
+E3,,"4 active, graceful",8,1.1715,reorder,0.3,,,,,,,
+E3,,"4 active, graceful",8,0.7909,reorder,0.6,,,,,,,
+E3,,"4 active, graceful",8,0.5483,reorder,1.0,,,,,,,
+E3,,"4 active, graceful",16,2.6481,reorder,0.0,,,,,,,
+E3,,"4 active, graceful",16,1.8436,reorder,0.15,,,,,,,
+E3,,"4 active, graceful",16,1.4111,reorder,0.3,,,,,,,
+E3,,"4 active, graceful",16,0.9563,reorder,0.6,,,,,,,
+E3,,"4 active, graceful",16,0.6647,reorder,1.0,,,,,,,
+E3,,"4 active, graceful",32,3.1538,reorder,0.0,,,,,,,
+E3,,"4 active, graceful",32,2.2244,reorder,0.15,,,,,,,
+E3,,"4 active, graceful",32,1.7145,reorder,0.3,,,,,,,
+E3,,"4 active, graceful",32,1.1707,reorder,0.6,,,,,,,
+E3,,"4 active, graceful",32,0.8176,reorder,1.0,,,,,,,
