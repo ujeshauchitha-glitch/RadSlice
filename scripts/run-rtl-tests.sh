@@ -21,3 +21,8 @@ for sp in 0 8 32; do
   vvp "$tmp/rftb$sp" +vec="$tmp/rf$sp.txt" | grep -E "^(PASS|FAIL)" | tee "$tmp/rr$sp.txt"
   grep -q "^PASS" "$tmp/rr$sp.txt"
 done
+for sp in 0 8 32; do
+  iverilog -g2012 -o "$tmp/rsb$sp" -P tb_sliced_regfile_serial.SPARES="$sp" rtl/sliced_regfile_serial.v rtl/tb/tb_sliced_regfile_serial.v
+  vvp "$tmp/rsb$sp" +vec="$tmp/rf$sp.txt" | grep -E "^(PASS|FAIL)" | tee "$tmp/rs$sp.txt"
+  grep -q "^PASS" "$tmp/rs$sp.txt"
+done

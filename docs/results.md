@@ -646,6 +646,20 @@ defects ignored, remap off by one) failed 8,907, 4,005, 16,952 and 21,712 of 60,
   (`sliced_regfile_serial.v`) and the core uses it; this module stays as the whole-word reference.
 - **Not done:** timing, the serial register file, the core.
 
+## G18, step 3: the slice-serial register file
+
+`rtl/sliced_regfile_serial.v` has the same slices, remap, parity and fault hooks as step 2 but moves one byte per beat
+(one selector per read port; parity accumulated across the eight beats and compared on the last). The same 60,000
+operation sequences, replayed one byte at a time, match the model on all 22,690 checked reads at 0, 8 and 32 spares.
+
+- **Size, generic Yosys estimate (8 spares):** 38,700 LUTs, down from about 96,000 for the word-parallel file but still about
+  a third of the DE2-115. Applying the defect after the byte is chosen (once per port, not once per slice) took off
+  6,500 of those. The flip-flop form (about 5,800 flip-flops with their write multiplexers and 264:1 selectors) is
+  what is expensive; an FPGA would hold the slices and the remap table in block RAM, which the serial access
+  pattern permits, but that version is not built and its size is not measured. Treat the fit as **unresolved**, not
+  as shown.
+- **Not done:** block-RAM mapping, timing, any Quartus run.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
