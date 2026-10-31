@@ -131,6 +131,12 @@ int main(int argc, char** argv) {
                 make_op(inst.value, static_cast<u32>(base + (salu->stats().beats - b0)));
             for (auto& s : sched) s.push(op);
         }
+        // Cpu::run notices the test finishing by looking at tohost after each step; stepping by hand
+        // has to do the same, or the program's idle spin after it finishes gets scheduled too.
+        if (img.tohost != 0) {
+            const auto r = bus.load(img.tohost, 8, AccessType::Load);
+            if (r && r.value != 0) cpu.htif_tohost_value = r.value;
+        }
     }
     for (auto& s : sched) s.finish();
 
