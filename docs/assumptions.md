@@ -6,7 +6,7 @@ hand (a test fails if this file drifts from the parameters).
 Tiers: **A** published measurement (source given), **B** calibrated model (source given),
 **C** hypothetical. A simulation that uses any tier-C value is a what-if, not a measurement.
 
-**54 parameters: 8 tier A, 5 tier B, 41 tier C.**
+**57 parameters: 8 tier A, 5 tier B, 44 tier C.**
 
 13 parameters have a source: `cost.adder_bit_transistors`, `cost.mux2_transistors`, `cost.rf_block_transistors`, `cost.selection_module_transistors`, `cost.store_bit_transistors`, `yield.cluster_alpha_min_matrix_scale`, `yield.implied_per_transistor`, `yield.measured_64bit_register`, `yield.measured_8bit_shift_register`, `yield.measured_8bit_shift_register_from_map`, `yield.measured_inverter`, `yield.measured_transistor`, `yield.p_slice_good`. All come from one paper (Ao, Zhou et al., Nature 640, 654-661, 2025: main text and Supplementary Fig. 7) and are all about yield. Every other parameter, including every upset rate, is tier C, and every result in `docs/results.md` is still conditional on those.
 
@@ -72,6 +72,9 @@ Tiers: **A** published measurement (source given), **B** calibrated model (sourc
 | `selftest.rounds` | 1 | rounds | C | Boot self-test repetitions. One round is enough for hard defects and far from enough for weak ones (see docs/results.md, M3). Test time and its cost are not modelled. |
 | `spares.crossbar` | ideal: any spare serves any slice | model | C | The remap table, its multiplexers and the self-test logic are assumed fault-free and free. Every yield figure is therefore an upper bound. |
 | `spares.regions` | 1, 2, 4, 8, 16, 32 regions | regions | C | Reach of a spare: 1 is the ideal pool (any spare serves any slice); n restricts each spare to 1/n of the register file; 32 is one region per register (private spares). |
+| `vliw.port_area_frac` | 0.3 | fraction of the one-unit register file | C | Register-file area added per extra unit (two read ports and one write port, as a fraction of the one-unit file). Swept from 0 to 1 in the study; no source gives a value for this process. |
+| `vliw.rf_yield_one_unit` | 0.99 | probability | C | Yield of the register file at the one-unit port count, after sparing and repair (the cheapest designs of G10 reach about 0.93 to 0.99). Scaled with area for more ports: y ** (area ratio). |
+| `vliw.units` | 4 | units | C | Parallel K-bit units that are also the spares. A design choice, not a measurement. |
 | `yield.cluster_alpha_min_matrix_scale` | 9.37 | gamma shape | B | The strongest clustering (smallest gamma shape alpha) that the wafer map does not reject at about 95%: failures inside an 8-register matrix have pairwise correlation of at most about 0.03. It constrains differences BETWEEN matrices only. |
 | `yield.implied_per_transistor` | 0.99762 | probability | B | Per-transistor yield that independent failures would need to produce the register yields: 0.71 ** (1/144). The two register yields (8-bit and 64-bit) imply the same value, so yield falls with transistor count as independent failures predict. |
 | `yield.measured_64bit_register` | 0.07 | probability | A | "approximately 7% for a 64-bit register with 1,152 transistors". The authors round it; the independent scaling of the 8-bit figure gives 0.71 ** 8 = 0.0646. 1,152 is 8 times 144. |

@@ -458,3 +458,25 @@ note = """Transistors per function relative to the paper's n-type-only ratioed l
 n-input gate has 2n transistors and a ratioed n-only gate n + 1 (4/3 for 2 inputs, 8/5 for 4, towards 2).
 A function of mu times the transistors yields p^mu at an unchanged per-transistor yield; a different
 per-transistor yield for p-type devices would be a further factor, not modelled."""
+
+# --- VLIW organisation (G17) ---------------------------------------------
+
+[vliw.units]
+value = 4
+tier = "C"
+unit = "units"
+note = "Parallel K-bit units that are also the spares. A design choice, not a measurement."
+
+[vliw.port_area_frac]
+value = 0.30
+tier = "C"
+unit = "fraction of the one-unit register file"
+note = """Register-file area added per extra unit (two read ports and one write port, as a fraction of the
+one-unit file). Swept from 0 to 1 in the study; no source gives a value for this process."""
+
+[vliw.rf_yield_one_unit]
+value = 0.99
+tier = "C"
+unit = "probability"
+note = """Yield of the register file at the one-unit port count, after sparing and repair (the cheapest
+designs of G10 reach about 0.93 to 0.99). Scaled with area for more ports: y ** (area ratio)."""
