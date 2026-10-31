@@ -13,3 +13,11 @@ for k in 8 16 32; do
   vvp "$tmp/tb$k" +vec="$tmp/v$k.txt" | grep -E "^(PASS|FAIL)" | tee "$tmp/r$k.txt"
   grep -q "^PASS" "$tmp/r$k.txt"
 done
+RFV=build/radslice_rf_vectors
+[ -x "$RFV" ] || RFV=build/radslice_rf_vectors.exe
+for sp in 0 8 32; do
+  "$RFV" "$sp" 60000 7 > "$tmp/rf$sp.txt"
+  iverilog -g2012 -o "$tmp/rftb$sp" -P tb_sliced_regfile.SPARES="$sp" rtl/sliced_regfile.v rtl/tb/tb_sliced_regfile.v
+  vvp "$tmp/rftb$sp" +vec="$tmp/rf$sp.txt" | grep -E "^(PASS|FAIL)" | tee "$tmp/rr$sp.txt"
+  grep -q "^PASS" "$tmp/rr$sp.txt"
+done

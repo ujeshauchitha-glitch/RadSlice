@@ -41,6 +41,10 @@ add_executable(radslice_alu_vectors src/radslice_alu_vectors.cpp)
 target_link_libraries(radslice_alu_vectors PRIVATE radslice_hw)
 target_compile_options(radslice_alu_vectors PRIVATE -Wall -Wextra)
 
+add_executable(radslice_rf_vectors src/radslice_rf_vectors.cpp)
+target_link_libraries(radslice_rf_vectors PRIVATE radslice_hw)
+target_compile_options(radslice_rf_vectors PRIVATE -Wall -Wextra)
+
 add_executable(radslice_yield src/radslice_yield.cpp)
 target_link_libraries(radslice_yield PRIVATE radslice_hw)
 target_compile_options(radslice_yield PRIVATE -Wall -Wextra)

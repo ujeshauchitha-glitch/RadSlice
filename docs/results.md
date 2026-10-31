@@ -626,6 +626,26 @@ The model generating them is checked against the golden core's `alu_reference` f
   file, the core, spares, or any board run. Only the ALU is verified against vectors; nothing about instruction
   fetch or the pipeline is.
 
+## G18, step 2: the word-parallel register file matches the model, and is too big
+
+`rtl/sliced_regfile.v`: 32 words x 8 byte slices plus SPARES spare slices, a remap table, one parity bit per word, a
+stuck-bit defect and an upset-injection port per slice, and direct physical access for the self-test. Two read ports
+return a whole 64-bit word at once. `radslice_rf_vectors` writes 60,000 random operations (writes, reads, defects,
+remaps to spares, bit flips, physical reads and writes); the hardware's value and parity flag equal the model's on
+all 22,690 checked reads at 0, 8 and 32 spares. Four deliberate breaks (parity not written, flip shifted one bit,
+defects ignored, remap off by one) failed 8,907, 4,005, 16,952 and 21,712 of 60,000 operations.
+
+- **A failure on the way:** the first version produced about 48 wrong reads in 60,000 and passed no test. The cause was
+  simulator sensitivity (Icarus does not re-evaluate a function that reads array elements when one changes), not a
+  logic error; rewriting the read path as continuous assignments over packed vectors fixed it. A reminder that a test
+  that fails rarely is still a failure.
+- **It does not fit comfortably.** Yosys (generic 4-input LUTs, 8 spares) gives about 96,000 LUTs and 5,800 flip-flops,
+  84% of the DE2-115's roughly 114,000 logic elements, before any core. Reading a whole word through the remap means
+  eight 264:1 byte selectors per port. This is the cost of the word-parallel interface, not of the architecture:
+  a slice-serial design reads one byte per beat, so one selector per port. The next step builds that version
+  (`sliced_regfile_serial.v`) and the core uses it; this module stays as the whole-word reference.
+- **Not done:** timing, the serial register file, the core.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
