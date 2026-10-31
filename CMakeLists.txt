@@ -33,11 +33,15 @@ add_executable(radslice_inject src/radslice_inject.cpp)
 target_link_libraries(radslice_inject PRIVATE radslice_hw)
 target_compile_options(radslice_inject PRIVATE -Wall -Wextra)
 
+add_executable(radslice_vliw src/radslice_vliw.cpp)
+target_link_libraries(radslice_vliw PRIVATE radslice_hw)
+target_compile_options(radslice_vliw PRIVATE -Wall -Wextra)
+
 add_executable(radslice_yield src/radslice_yield.cpp)
 target_link_libraries(radslice_yield PRIVATE radslice_hw)
 target_compile_options(radslice_yield PRIVATE -Wall -Wextra)
 
-foreach(t test_sliced_alu test_hw_lockstep test_defects test_protected_regfile test_transient_alu test_experiment test_cluster)
+foreach(t test_sliced_alu test_hw_lockstep test_defects test_protected_regfile test_transient_alu test_experiment test_cluster test_vliw)
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE radslice_hw)
   target_compile_options(${t} PRIVATE -Wall -Wextra)
