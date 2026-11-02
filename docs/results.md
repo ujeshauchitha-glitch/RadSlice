@@ -698,6 +698,26 @@ core's retirement stream with it line by line. `bash scripts/run-core-lockstep.s
 - **Not done:** instruction-mix coverage beyond two programs (no rv64ui riscv-tests: they need CSRs and trap handling); faults
   in the lockstep; M, A, F, D, C and CSRs; synthesis of the whole core, timing, and any board run.
 
+## G18, step 5: synchronous memory and the DE2-115 wrapper (simulation only)
+
+- **Block-RAM timing.** The FPGA's block RAM returns data one clock after the address, so the core has a `MEM_SYNC`
+  option that waits one extra cycle per instruction fetch and per load. With it, the core still matches the golden
+  trace on every instruction: chacha20 (47,993 instructions, 24.42 cycles per instruction at K = 16) and
+  coremark_like (43,376, 24.32). Without it nothing changed: the 300-instruction check gives the same 6,824 cycles as before.
+  A first chacha20 run reported a failure that was a race in my testbench (it announced the final match one
+  retirement late and the program's idle loop had already run past the end of the trace); fixing the testbench
+  removed it and no core change was involved.
+- **Board wrapper.** `rtl/de2_115/de2_115_top.v` puts the core on a divided clock (6.25 MHz) with on-chip ROM and RAM,
+  memory-mapped LEDs, switches and displays, and the register file's flip and stuck-bit hooks on the keys and switches.
+  `de2_115.qsf` (78 pin assignments copied from a published DE2-115 pin table and checked against the extracted text by
+  script), `de2_115.sdc` and `de2_115.qpf` make it a Quartus project; `docs/fpga-board.md` says how to use it.
+- **Simulated session** (`bash scripts/run-board-sim.sh`, whole wrapper plus core): the counter counts; the red LEDs follow the
+  switches; flipping bit 12 of x6 moved the displayed counter from 72 to 4,207 and raised the parity-error count;
+  a stuck bit on x6's first slice raised it to 78. A flipped bit is detected by parity and then spreads: the next write of
+  the register stores the corrupted value with a fresh, matching parity, so the count rises by a few, not continuously.
+- **Not done, and not known:** no Quartus compile (so no fit, no Fmax, no check that the pin file is accepted), no board run,
+  no check of the pin table against Terasic's own manual, and the boot self-test and remap are not wired to the board.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
