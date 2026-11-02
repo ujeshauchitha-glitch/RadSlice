@@ -10,9 +10,12 @@
 // memory cycle for loads and stores, 8 write-back beats. Those fixed costs are what the model calls `base`; the
 // testbench reports the measured value.
 //
-// Memory is outside: a combinational instruction fetch and a combinational data port. ECALL, EBREAK and any
+// Memory is outside. With MEM_SYNC = 0 it answers in the same cycle (a combinational instruction fetch and data port).
+// With MEM_SYNC = 1 it answers one clock after the address is presented, as FPGA block RAM does: the core waits one
+// extra cycle for each instruction fetch and for each load. ECALL, EBREAK and any
 // encoding this core does not implement stop it (halted, with `illegal` set for the latter).
-module rv64i_core #(parameter K = 16, parameter SPARES = 8, parameter RESET_PC = 64'h0000000080000000) (
+module rv64i_core #(parameter K = 16, parameter SPARES = 8, parameter RESET_PC = 64'h0000000080000000,
+                    parameter MEM_SYNC = 0) (
     input  wire        clk,
     input  wire        rst,
 
@@ -56,7 +59,7 @@ module rv64i_core #(parameter K = 16, parameter SPARES = 8, parameter RESET_PC =
     input  wire [4:0]  flip_word,
     input  wire [5:0]  flip_bit
 );
-    localparam S_FETCH = 4'd0, S_READ = 4'd1, S_EXEC = 4'd2, S_WAIT = 4'd3, S_MEM = 4'd4, S_WB = 4'd5, S_RETIRE = 4'd6, S_HALT = 4'd7;
+    localparam S_FETCH = 4'd0, S_READ = 4'd1, S_EXEC = 4'd2, S_WAIT = 4'd3, S_MEM = 4'd4, S_WB = 4'd5, S_RETIRE = 4'd6, S_HALT = 4'd7, S_FETCH2 = 4'd8, S_MEM2 = 4'd9;
 
     localparam OPC_LOAD = 7'h03, OPC_MISC = 7'h0f, OPC_OPIMM = 7'h13, OPC_AUIPC = 7'h17, OPC_OPIMM32 = 7'h1b,
                OPC_STORE = 7'h23, OPC_OP = 7'h33, OPC_LUI = 7'h37, OPC_OP32 = 7'h3b, OPC_BRANCH = 7'h63,
@@ -259,6 +262,15 @@ module rv64i_core #(parameter K = 16, parameter SPARES = 8, parameter RESET_PC =
 
             case (state)
                 S_FETCH: begin
+                    if (MEM_SYNC != 0) state <= S_FETCH2;
+                    else begin
+                        inst <= imem_data;
+                        cnt <= 4'd0;
+                        state <= S_READ;
+                    end
+                end
+
+                S_FETCH2: begin        // MEM_SYNC only: the instruction is on the bus one cycle after the address
                     inst <= imem_data;
                     cnt <= 4'd0;
                     state <= S_READ;
@@ -331,7 +343,16 @@ module rv64i_core #(parameter K = 16, parameter SPARES = 8, parameter RESET_PC =
                 end
 
                 S_MEM: begin
-                    // the combinational data port has answered in the cycle dmem_en was high
+                    if (MEM_SYNC != 0) state <= S_MEM2;
+                    else begin
+                        // the combinational data port has answered in the cycle dmem_en was high
+                        if (is_load) begin res <= load_val; wb_en <= 1'b1; end
+                        cnt <= 4'd0;
+                        state <= S_WB;
+                    end
+                end
+
+                S_MEM2: begin          // MEM_SYNC only: the loaded value is on the bus one cycle after the address
                     if (is_load) begin res <= load_val; wb_en <= 1'b1; end
                     cnt <= 4'd0;
                     state <= S_WB;

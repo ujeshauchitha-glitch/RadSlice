@@ -7,6 +7,7 @@
 `timescale 1ns/1ps
 module tb_rv64i_core;
     parameter K = 16;
+    parameter LAT = 0;      // 1: memory answers one clock after the address, like FPGA block RAM
     localparam MEMSZ = 2 * 1024 * 1024;
     localparam [63:0] BASE = 64'h0000000080000000;
 
@@ -16,7 +17,10 @@ module tb_rv64i_core;
     reg [7:0] mem [0:MEMSZ-1];
 
     wire [63:0] imem_addr;
-    wire [31:0] imem_data = {mem[imem_addr[20:0] + 3], mem[imem_addr[20:0] + 2], mem[imem_addr[20:0] + 1], mem[imem_addr[20:0]]};
+    wire [31:0] imem_comb = {mem[imem_addr[20:0] + 3], mem[imem_addr[20:0] + 2], mem[imem_addr[20:0] + 1], mem[imem_addr[20:0]]};
+    reg  [31:0] imem_q;
+    always @(posedge clk) imem_q <= imem_comb;
+    wire [31:0] imem_data = (LAT != 0) ? imem_q : imem_comb;
 
     wire        dmem_en, dmem_we;
     wire [63:0] dmem_addr, dmem_wdata;
@@ -25,10 +29,13 @@ module tb_rv64i_core;
     // Continuous assignments, not an always @* block: a combinational block that reads a 2 MiB array makes the
     // simulator build a sensitivity entry per element, which does not finish.
     wire [63:0] raw = {mem[da + 7], mem[da + 6], mem[da + 5], mem[da + 4], mem[da + 3], mem[da + 2], mem[da + 1], mem[da]};
+    reg  [63:0] raw_q;
+    always @(posedge clk) raw_q <= raw;
+    wire [63:0] rawsel = (LAT != 0) ? raw_q : raw;
     wire [63:0] dmem_rdata =
-        (dmem_funct3 == 3'd0 || dmem_funct3 == 3'd4) ? {56'd0, raw[7:0]} :
-        (dmem_funct3 == 3'd1 || dmem_funct3 == 3'd5) ? {48'd0, raw[15:0]} :
-        (dmem_funct3 == 3'd2 || dmem_funct3 == 3'd6) ? {32'd0, raw[31:0]} : raw;
+        (dmem_funct3 == 3'd0 || dmem_funct3 == 3'd4) ? {56'd0, rawsel[7:0]} :
+        (dmem_funct3 == 3'd1 || dmem_funct3 == 3'd5) ? {48'd0, rawsel[15:0]} :
+        (dmem_funct3 == 3'd2 || dmem_funct3 == 3'd6) ? {32'd0, rawsel[31:0]} : rawsel;
     integer wi;
     always @(posedge clk) begin
         if (dmem_en && dmem_we)
@@ -41,7 +48,7 @@ module tb_rv64i_core;
     wire [4:0]  ret_rd;
     wire [2:0]  ret_st_size;
 
-    rv64i_core #(.K(K)) dut (
+    rv64i_core #(.K(K), .MEM_SYNC(LAT)) dut (
         .clk(clk), .rst(rst),
         .imem_addr(imem_addr), .imem_data(imem_data),
         .dmem_en(dmem_en), .dmem_we(dmem_we), .dmem_addr(dmem_addr), .dmem_funct3(dmem_funct3),
@@ -97,19 +104,16 @@ module tb_rv64i_core;
                     $finish;
                 end
                 n = n + 1;
+                // the trace length comes from the command line (+count=N): finish at the edge of the last match
+                if (n == count) begin
+                    $display("PASS K=%0d: %0d instructions match the golden trace; %0d cycles (%0d.%02d per instruction); parity errors %0d",
+                             K, n, cycles, cycles / n, ((cycles * 100) / n) % 100, parity_errors);
+                    $finish;
+                end
             end
         end
         if (!rst && halted && bad == 0) begin
             $display("core halted after %0d instructions (illegal=%b)", n, illegal);
-            $finish;
-        end
-    end
-
-    // The trace length comes from the command line (+count=N): finish when that many instructions have matched.
-    always @(posedge clk) begin
-        if (!rst && ret_valid && bad == 0 && n == count) begin
-            $display("PASS K=%0d: %0d instructions match the golden trace; %0d cycles (%0d.%02d per instruction); parity errors %0d",
-                     K, n, cycles, cycles / n, ((cycles * 100) / n) % 100, parity_errors);
             $finish;
         end
     end
