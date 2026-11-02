@@ -172,3 +172,5 @@ set_location_assignment PIN_AF23 -to HEX3[5]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to HEX3[5]
 set_location_assignment PIN_Y19 -to HEX3[6]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to HEX3[6]
+
+set_global_assignment -name LAST_QUARTUS_VERSION "24.1std.0 Lite Edition"

@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .claude/settings.local.json
 results/*.tmp
+
+# Quartus build products
+rtl/de2_115/db/
+rtl/de2_115/incremental_db/
+rtl/de2_115/output_files/

@@ -2,7 +2,7 @@
 // switches and seven-segment displays, and the fault-injection hooks of the register file on the switches and keys.
 //
 // Memory map seen by the program (the core's data bus):
-//   0x80000000 .. 0x80001fff   8 KiB RAM, initialised from the program image (code is fetched from a ROM copy)
+//   0x80000000 .. 0x80001fff   8 KiB RAM, zeroed at start (code is fetched from a separate ROM holding the program image)
 //   0x10000000  LEDR[17:0]  write      0x10000008  LEDG[7:0] write (LEDG shows the parity-error count, see below)
 //   0x10000010  HEX3..HEX0 (16 bits, four hex digits)  write
 //   0x10000018  SW[17:0] read          0x10000020  KEY[3:0] read (1 = pressed)
@@ -74,15 +74,26 @@ module de2_115_top #(
     always @(posedge clk) rom_q <= rom[imem_addr[12:2]];
     assign imem_data = rom_q;
 
-    // ---- data RAM: 1024 dwords as a 64-bit word with byte-enabled write, synchronous read ----------------------
-    // Initialised from the same image, so the program's constants and initial data are visible.
+    // ---- data RAM: eight byte lanes x 1024, synchronous read, byte-enabled write --------------------------------
+    // One array per byte lane so the synthesis tool maps it onto block RAM. It starts zeroed: the demo program keeps no
+    // initialised data (a program that does would need per-lane image files).
     wire        is_mmio = dmem_addr[28];
     wire [9:0]  widx    = dmem_addr[12:3];
     wire [2:0]  lane    = dmem_addr[2:0];
-    reg  [63:0] ram [0:1023];
-    reg  [63:0] ram_q;
+    reg  [7:0]  ram0 [0:1023];
+    reg  [7:0]  ram1 [0:1023];
+    reg  [7:0]  ram2 [0:1023];
+    reg  [7:0]  ram3 [0:1023];
+    reg  [7:0]  ram4 [0:1023];
+    reg  [7:0]  ram5 [0:1023];
+    reg  [7:0]  ram6 [0:1023];
+    reg  [7:0]  ram7 [0:1023];
+    reg  [7:0]  q0, q1, q2, q3, q4, q5, q6, q7;
     integer ii;
-    initial for (ii = 0; ii < 1024; ii = ii + 1) ram[ii] = {rom[2*ii + 1], rom[2*ii]};
+    initial for (ii = 0; ii < 1024; ii = ii + 1) begin
+        ram0[ii] = 8'd0; ram1[ii] = 8'd0; ram2[ii] = 8'd0; ram3[ii] = 8'd0;
+        ram4[ii] = 8'd0; ram5[ii] = 8'd0; ram6[ii] = 8'd0; ram7[ii] = 8'd0;
+    end
 
     wire [63:0] sdata = dmem_wdata << {lane, 3'b000};
     reg  [7:0]  wen;
@@ -96,18 +107,38 @@ module de2_115_top #(
     end
     wire we_ram = dmem_en && dmem_we && !is_mmio;
     always @(posedge clk) begin
-        if (we_ram) begin
-            if (wen[0]) ram[widx][7:0]   <= sdata[7:0];
-            if (wen[1]) ram[widx][15:8]  <= sdata[15:8];
-            if (wen[2]) ram[widx][23:16] <= sdata[23:16];
-            if (wen[3]) ram[widx][31:24] <= sdata[31:24];
-            if (wen[4]) ram[widx][39:32] <= sdata[39:32];
-            if (wen[5]) ram[widx][47:40] <= sdata[47:40];
-            if (wen[6]) ram[widx][55:48] <= sdata[55:48];
-            if (wen[7]) ram[widx][63:56] <= sdata[63:56];
-        end
-        ram_q <= ram[widx];
+        if (we_ram && wen[0]) ram0[widx] <= sdata[7:0];
+        q0 <= ram0[widx];
     end
+    always @(posedge clk) begin
+        if (we_ram && wen[1]) ram1[widx] <= sdata[15:8];
+        q1 <= ram1[widx];
+    end
+    always @(posedge clk) begin
+        if (we_ram && wen[2]) ram2[widx] <= sdata[23:16];
+        q2 <= ram2[widx];
+    end
+    always @(posedge clk) begin
+        if (we_ram && wen[3]) ram3[widx] <= sdata[31:24];
+        q3 <= ram3[widx];
+    end
+    always @(posedge clk) begin
+        if (we_ram && wen[4]) ram4[widx] <= sdata[39:32];
+        q4 <= ram4[widx];
+    end
+    always @(posedge clk) begin
+        if (we_ram && wen[5]) ram5[widx] <= sdata[47:40];
+        q5 <= ram5[widx];
+    end
+    always @(posedge clk) begin
+        if (we_ram && wen[6]) ram6[widx] <= sdata[55:48];
+        q6 <= ram6[widx];
+    end
+    always @(posedge clk) begin
+        if (we_ram && wen[7]) ram7[widx] <= sdata[63:56];
+        q7 <= ram7[widx];
+    end
+    wire [63:0] ram_q = {q7, q6, q5, q4, q3, q2, q1, q0};
     // the loaded dword, shifted down by the byte offset (the core extends from the access size)
     reg [2:0] lane_q;
     reg       mmio_q;

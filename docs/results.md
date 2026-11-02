@@ -715,8 +715,20 @@ core's retirement stream with it line by line. `bash scripts/run-core-lockstep.s
   switches; flipping bit 12 of x6 moved the displayed counter from 72 to 4,207 and raised the parity-error count;
   a stuck bit on x6's first slice raised it to 78. A flipped bit is detected by parity and then spreads: the next write of
   the register stores the corrupted value with a fresh, matching parity, so the count rises by a few, not continuously.
-- **Not done, and not known:** no Quartus compile (so no fit, no Fmax, no check that the pin file is accepted), no board run,
-  no check of the pin table against Terasic's own manual, and the boot self-test and remap are not wired to the board.
+- **Quartus compile (24.1 Lite, device EP4CE115F29C7), run on 2026-11-02, built from the pushed sources:**
+  first attempt 102,196 of 114,480 logic elements (89%), 69,947 registers, 65,536 memory bits. That was almost all my
+  data RAM: it was initialised from the ROM image with a non-constant expression, so the tool built it from
+  flip-flops instead of block RAM. Rewritten as eight byte-lane arrays it maps to block RAM, and the same design then
+  uses **17,757 logic elements (16%), 4,347 registers and 131,072 memory bits (3%)** with 8 spare slices.
+  The register file with its remap, parity and fault hooks therefore fits easily, which the generic Yosys estimate (38,700
+  LUTs) had left open; that estimate was about twice the real figure.
+  Timing at the constrained core clock of 6.25 MHz: setup slack +15.6 ns, hold slack +0.15 ns at the worst corner;
+  Fmax of the core clock domain 22.3 MHz (85 C slow model) and 24.1 MHz (0 C), so the clock could be raised to about 12.5 MHz
+  (`CLK_DIV = 2`) with margin. 17 compile warnings, none about timing; the ones that matter are the I/O voltage reminder
+  (23 pins on the jumper-selected banks) and that the ROM image has only 14 of its 2,048 words.
+- **Still not done:** no board run (the programming cable was not detected by the laptop when checked), no check of the pin
+  table against Terasic's manual, the boot self-test and remap are not wired to the board, and the data RAM starts zeroed
+  (a program with initialised data would need per-lane image files).
 
 ## M0: closed-form yield model
 
