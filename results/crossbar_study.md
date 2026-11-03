@@ -82,9 +82,11 @@ Cheapest design that reaches a yield target (tagged routing):
 
 ## E3. Chip cost against slice width K
 
-Register file and ALU optimised jointly (independent defects, default costs). Silicon per good chip in units of the bare register file; cycles per instruction from the M2 beat model with the outside-the-ALU cost `base` = 2 beats; silicon x cycles normalised to the best row in the table.
+Register file and ALU optimised jointly (independent defects, default costs). Silicon per good chip in units of the bare register file; cycles per instruction from the M2 beat model with the outside-the-ALU cost `base` = 2 beats and again at the measured 21; silicon x cycles normalised to the best row in each table.
 
-### ALU organisation: replicated
+#### outside-the-ALU cost base = 2 cycles (the original assumption)
+
+### ALU organisation: replicated, base = 2
 
 | K | RF regions | RF spares | ALU spares | ALU yield | ALU silicon (T) | per good chip rel. | x cycles: alu_mix (compute l | x cycles: rv64ui+rv64mi (tes |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -96,7 +98,7 @@ Register file and ALU optimised jointly (independent defects, default costs). Si
 | 32 | 8 | 200 | 15 | 0.954 | 32,913 | 5.401 | 1.00 | 1.00 |
 | 64 | 8 | 200 | 29 | 0.865 | 68,805 | 7.132 | 1.03 | 1.05 |
 
-### ALU organisation: single
+### ALU organisation: single, base = 2
 
 | K | RF regions | RF spares | ALU spares | ALU yield | ALU silicon (T) | per good chip rel. | x cycles: alu_mix (compute l | x cycles: rv64ui+rv64mi (tes |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -107,6 +109,32 @@ Register file and ALU optimised jointly (independent defects, default costs). Si
 | 16 | 8 | 192 | 6 | 0.993 | 3,942 | 4.354 | 1.36 | 1.33 |
 | 32 | 8 | 200 | 12 | 0.978 | 14,796 | 4.741 | 1.00 | 1.00 |
 | 64 | 8 | 200 | 29 | 0.865 | 68,805 | 7.132 | 1.17 | 1.19 |
+
+#### outside-the-ALU cost base = 21 cycles (measured on the Verilog core: about 20.7 cycles per instruction of register-file and fetch cost)
+
+### ALU organisation: replicated, base = 21
+
+| K | RF regions | RF spares | ALU spares | ALU yield | ALU silicon (T) | per good chip rel. | x cycles: alu_mix (compute l | x cycles: rv64ui+rv64mi (tes |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 8 | 200 | 6 | 0.973 | 32,616 | 5.286 | 3.46 | 3.17 |
+| 2 | 8 | 200 | 7 | 0.987 | 25,731 | 5.009 | 2.07 | 1.94 |
+| 4 | 8 | 200 | 7 | 0.980 | 19,809 | 4.876 | 1.42 | 1.37 |
+| 8 | 8 | 200 | 8 | 0.979 | 19,224 | 4.861 | 1.12 | 1.11 |
+| 16 | 8 | 200 | 10 | 0.973 | 22,158 | 4.978 | 1.00 | 1.00 |
+| 32 | 8 | 200 | 15 | 0.954 | 32,913 | 5.401 | 1.00 | 1.01 |
+| 64 | 8 | 200 | 29 | 0.865 | 68,805 | 7.132 | 1.28 | 1.29 |
+
+### ALU organisation: single, base = 21
+
+| K | RF regions | RF spares | ALU spares | ALU yield | ALU silicon (T) | per good chip rel. | x cycles: alu_mix (compute l | x cycles: rv64ui+rv64mi (tes |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 8 | 192 | 2 | 1.000 | 117 | 4.210 | 3.15 | 2.89 |
+| 2 | 8 | 192 | 2 | 0.999 | 216 | 4.215 | 1.99 | 1.87 |
+| 4 | 8 | 192 | 3 | 0.999 | 567 | 4.226 | 1.41 | 1.36 |
+| 8 | 8 | 192 | 4 | 0.998 | 1,404 | 4.256 | 1.12 | 1.11 |
+| 16 | 8 | 192 | 6 | 0.993 | 3,942 | 4.354 | 1.00 | 1.00 |
+| 32 | 8 | 200 | 12 | 0.978 | 14,796 | 4.741 | 1.01 | 1.02 |
+| 64 | 8 | 200 | 29 | 0.865 | 68,805 | 7.132 | 1.46 | 1.48 |
 
 ## E4. Which cost assumption changes which answer
 
@@ -129,6 +157,7 @@ One knob moved at a time from the default (independent defects). `K*` is the K w
 | other_T | 60000.0 | 8 | 192 | 4.21 | 64 | 32 | 0.071 |
 | base_cycles | 1 | 8 | 192 | 4.21 | 64 | 32 | 0.091 |
 | base_cycles | 4 | 8 | 192 | 4.21 | 32 | 32 | 0.091 |
+| base_cycles | 21 | 8 | 192 | 4.21 | 16 | 16 | 0.027 |
 
 ## E5. The routing is made of transistors that fail too
 

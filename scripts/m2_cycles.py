@@ -25,7 +25,7 @@ EMU = next((p for p in (ROOT / "build/radslice_run", ROOT / "build/radslice_run.
 TESTS = ROOT / "extern/riscv-emu/build/riscv-tests"
 LINK = ROOT / "extern/riscv-emu/tests/riscv-tests-env/link.ld"
 KS = (8, 16, 32)
-BASES = (1, 2, 4)
+BASES = (1, 2, 4, 21)   # 21: measured on the Verilog core (G18 step 4), about 20.7 cycles per instruction outside the ALU
 STAT = re.compile(r"RADSLICE_STATS (.*)")
 
 

@@ -190,24 +190,28 @@ def main():
     md.append("## E3. Chip cost against slice width K\n")
     md.append("Register file and ALU optimised jointly (independent defects, default costs). Silicon per good chip "
               "in units of the bare register file; cycles per instruction from the M2 beat model with the "
-              "outside-the-ALU cost `base` = 2 beats; silicon x cycles normalised to the best row in the table.\n")
+              "outside-the-ALU cost `base` = 2 beats and again at the measured 21; silicon x cycles normalised to the best row in each table.\n")
     wls = workloads()
     progs = sorted({p for p, _ in wls})
-    for org in ORGS:
-        md.append(f"### ALU organisation: {org}\n")
-        md.append("| K | RF regions | RF spares | ALU spares | ALU yield | ALU silicon (T) | per good chip rel. | "
-                  + " | ".join(f"x cycles: {p[:18]}" for p in progs) + " |")
-        md.append("|---:|---:|---:|---:|---:|---:|---:|" + "---:|" * len(progs))
-        table = [best_chip(k, org, c0) for k in KS]
-        norms = {p: min(r["per_good"] * cpi(wls[(p, 2)], 2, r["k"]) for r in table) for p in progs}
-        for r in table:
-            xs = [r["per_good"] * cpi(wls[(p, 2)], 2, r["k"]) / norms[p] for p in progs]
-            md.append(f"| {r['k']} | {r['regions']} | {r['rf_spares']} | {r['alu_spares']} | {r['yield_alu']:.3f} | "
-                      f"{r['alu_T']:,.0f} | {r['per_good'] / BASE:.3f} | " + " | ".join(f"{x:.2f}" for x in xs) + " |")
-            add("E3", org=org, k=r["k"], regions=r["regions"], rf_spares=r["rf_spares"], alu_spares=r["alu_spares"],
-                yield_alu=r["yield_alu"], alu_T=r["alu_T"], per_good_rel=r["per_good"] / BASE,
-                **{f"x_cycles[{p}]": x for p, x in zip(progs, xs)})
-        md.append("")
+    for base3 in (2, 21):
+        note3 = ("(the original assumption)" if base3 == 2 else
+                 "(measured on the Verilog core: about 20.7 cycles per instruction of register-file and fetch cost)")
+        md.append(f"#### outside-the-ALU cost base = {base3} cycles {note3}\n")
+        for org in ORGS:
+            md.append(f"### ALU organisation: {org}, base = {base3}\n")
+            md.append("| K | RF regions | RF spares | ALU spares | ALU yield | ALU silicon (T) | per good chip rel. | "
+                      + " | ".join(f"x cycles: {p[:18]}" for p in progs) + " |")
+            md.append("|---:|---:|---:|---:|---:|---:|---:|" + "---:|" * len(progs))
+            table = [best_chip(k, org, c0) for k in KS]
+            norms = {p: min(r["per_good"] * cpi(wls[(p, base3)], base3, r["k"]) for r in table) for p in progs}
+            for r in table:
+                xs = [r["per_good"] * cpi(wls[(p, base3)], base3, r["k"]) / norms[p] for p in progs]
+                md.append(f"| {r['k']} | {r['regions']} | {r['rf_spares']} | {r['alu_spares']} | {r['yield_alu']:.3f} | "
+                          f"{r['alu_T']:,.0f} | {r['per_good'] / BASE:.3f} | " + " | ".join(f"{x:.2f}" for x in xs) + " |")
+                add("E3", base=base3, org=org, k=r["k"], regions=r["regions"], rf_spares=r["rf_spares"], alu_spares=r["alu_spares"],
+                    yield_alu=r["yield_alu"], alu_T=r["alu_T"], per_good_rel=r["per_good"] / BASE,
+                    **{f"x_cycles[{p}]": x for p, x in zip(progs, xs)})
+            md.append("")
 
     # E4
     md.append("## E4. Which cost assumption changes which answer\n")
@@ -223,7 +227,7 @@ def main():
     knobs += [("t_mux2 x", v, dict(t_mux2=cost.T_MUX2 * v)) for v in (0.5, 2.0, 4.0)]
     knobs += [("alu_factor", v, dict(alu_factor=v)) for v in (4.0, 16.0)]
     knobs += [("other_T", v, dict(other_T=v)) for v in (6000.0, 60000.0)]
-    knobs += [("base_cycles", v, dict(base=v)) for v in (1, 4)]
+    knobs += [("base_cycles", v, dict(base=v)) for v in (1, 4, 21)]
     for name, val, kw in knobs:
         base = kw.pop("base", 2)
         cc = Costs(**kw)
