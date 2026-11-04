@@ -22,7 +22,7 @@ to answer it. It decides what the project is for.
 | 1 | G19 step 1: quantized network and integer reference | done: float 0.9704, integer 0.9685 held-out accuracy |
 | 2 | MAC array in Verilog, bit-exact against the reference | done for int32 sums on random tiles and 20 test images (0 mismatches, four sizes); requantization and argmax not yet in hardware |
 | 3 | Stuck-bit defects, boot self-test, spare rows or columns, remap | done in simulation: repaired arrays match the reference on 450 random chips, yield agrees with the closed form (|z| <= 1.2); the self-test is run by the testbench, not yet by a controller program |
-| 4 | Upsets and protection schemes (checksum, parity, TMR), accuracy against fault rate | each scheme's accuracy floor and cost, measured |
+| 4 | Upsets and protection schemes (checksum, parity, TMR), accuracy against fault rate | done in simulation: five schemes, accumulator and weight upsets, 2,700 images per cell (`results/g19_campaign.md`); triple voting tolerates the highest accumulator rate, the checksum lane is cheapest and the only one that catches weight upsets, but needs a clean weight copy |
 | 5 | RV64 controller drives the array on the DE2-115 | fits, runs the network, MACs per second measured at the achieved clock |
 | 6 | Fault injection on the board | the simulated result reproduced, or the disagreement recorded |
 | 7 | Mission-control dashboard | shows real result files only, every number labelled simulated or measured |

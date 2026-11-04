@@ -799,6 +799,52 @@ controller program does it yet. The crossbar that makes any element serve any la
 its own defects are not modelled (compare G10 and G14), and the 2% to 125% overhead figures count elements only,
 not routing.
 
+## G19, step 4: upsets and protection, measured as accuracy
+
+`python scripts/g19_campaign.py` then `python scripts/g19_report.py` (about 30 s). The real digit classifier runs on
+an 8-lane array (320 array steps per image) with upsets, for five schemes; each cell is 2,700 images (the 540
+held-out images with fresh faults, five times). Full tables: `results/g19_campaign.md`; figure:
+`results/g19_campaign.png`. Before any number was kept, every scheme reproduced the integer reference exactly with
+no faults, and 200 forced single flips agreed with the scalar model that the Verilog matches. Rates are tier C and
+swept. An accuracy floor of fault-free minus one point (0.9585) is used for "still works".
+
+**Accumulator upsets** (per element per cycle):
+
+| Scheme | Elements | Highest rate at or above the floor | Silent wrong answers | Cycles at that rate |
+|---|---|---|---|---|
+| none | 1x | 1e-5 | from 7e-4 at 1e-5, 11% at 1e-3 | 1.00 |
+| duplicate + compare + retry | 2x | 1e-4 | none observed up to 1e-2 | 1.09 |
+| checksum lane + retry | 1.125x lanes, one wider lane | 1e-4 | none up to 3e-4; a few per 10,000 at 1e-3 | 1.05 |
+| triple vote | 3x | 1e-3 | 0.3% at 1e-3, 26% at 1e-2 | 1.00 |
+
+- Triple voting tolerates a rate 10x above the retry schemes, at 3x the elements.
+- Both retry schemes turn silent errors into detected failures but stop working when a pass almost always sees an
+  upset (the retries fail too): past 1e-3 they deliver almost no answers (accuracy 0.25 for duplicate and compare,
+  0.66 for checksum at 1e-3).
+- The checksum lane matches duplicate-and-compare at the floor for 1.125x rather than 2x of the elements, but it
+  is not perfect: at 1e-3 it let a few answers through wrongly (two upsets whose effects cancel, or one in the
+  checksum lane itself that happens to agree).
+- A hypothesis stated before the run, that checksum protection would dominate, is not supported: triple voting
+  reaches a higher rate.
+
+**Weight upsets** (per stored bit per image, one draw per pass; the weight memory is shared by all copies):
+- The unprotected network is robust: accuracy stays within a point of fault-free up to 1e-3 per bit (about 19
+  flips per image over all 18,944 weight bits is too many to be harmless only at 1e-2 and above, where accuracy
+  falls to 0.86 and 0.66 at 3e-2), but silent wrong answers grow from 0.1% at 1e-4 to 1.8% at 1e-3.
+- Duplicate-and-compare and triple voting on the accumulators do nothing for weight upsets (all copies share the
+  corrupted weights): their silent-wrong curves equal the unprotected one.
+- The checksum lane detects every weight upset (no silent errors at any rate) and, **if a clean master copy of
+  the weights exists to reload from**, restores full accuracy at 2x the cycles at the highest rates. Without that
+  clean copy it is the worst scheme (accuracy 0.84 at 1e-5, 0 above 1e-3), because retrying reuses the corrupted
+  weights. The reload result rests on the master copy being immune and on the weights being corrupted once per
+  pass, not again after the reload; real memories upset continuously, so it is an upper bound.
+
+**Not shown.** Voters, comparators, checksum adders, the reload path and the controller's requantization are
+assumed fault-free; single-bit flips only, independent per element and per cycle (no bursts or common-cause
+events); a digit classifier of 2,368 weights, not an inference workload people use; no area or timing of the
+protection logic (a 16-bit-weight checksum lane is counted as one lane); no power. The 2,700-image cells have a
+standard error of about 0.3 points near 0.97 accuracy, larger in the steep part of each curve.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
