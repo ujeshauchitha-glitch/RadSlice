@@ -1,13 +1,21 @@
 # RadSlice
 
-A simulation-first research project on a fault-tolerant, bit-sliced RV64I core
-for 2D-material (MoS2) chips in radiation environments.
+A simulation-first project working towards a **radiation-tolerant inference engine for spacecraft**: a small
+RV64 controller plus an int8 multiply-accumulate (MAC) array that survives manufacturing defects and upsets
+through spare elements, remap, a boot self-test and checksum protection. The target problem is the one in
+Y Combinator's Summer 2026 Request for Startups (inference chips for space, tuned for mass, thermal
+performance and radiation hardness; read from secondary coverage, the official text is unchecked).
+See `docs/goals.md` for the goal, the milestones and what would make us stop.
+
+It grew from a study of a fault-tolerant, bit-sliced RV64I core for 2D-material (MoS2) chips (G1 to G18, all
+kept): that work supplies the fault model, the spare-and-remap ideas, the Verilog controller core and the
+FPGA flow.
 
 **Nothing here is a measurement.** Every device or fault parameter is in
 `config/params.toml` with a tier tag (A published, B calibrated, C hypothetical)
-and defaults to C. No novelty is claimed: spare slices exist in silicon. The
-research question is the 2D-specific fault model plus combined yield and
-radiation handling on a slice-serial RV64 core.
+and defaults to C. No novelty is claimed: spare slices, parity, TMR and fault-tolerant systolic arrays all
+exist. The question is how they behave together on a small inference engine, measured in simulation and on
+an FPGA, with the failures kept.
 
 - `docs/gaps.md`: what each feature answers, and what would prove it wrong.
 - `docs/results.md`: what was shown, what was not, and what was rejected. Start with its
