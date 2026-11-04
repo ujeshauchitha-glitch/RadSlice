@@ -772,6 +772,33 @@ defective and picks the map (step 3). Only int32 sums are checked, not the requa
 the argmax (those stay in software for now). No timing, area or fit figures exist for the array.
 Each tile was run with a fresh clear, so accumulator state carried across tiles is not tested.
 
+## G19, step 3: defects, boot self-test and remap on the MAC array
+
+`bash scripts/run-mac-selftest.sh` runs `rtl/tb/tb_mac_selftest.v` on 150 random defective chips at each of three
+sizes (8+4, 8+2 and 4+4 lanes+spares; defect probability per element 0.25, 0.15, 0.30; one stuck bit per
+defective element). The testbench plays the boot controller: it tests every element with a two-read test
+(clear, add 1*0 and read, add -1*1 and read: a bit stuck at 1 shows on the first read, stuck at 0 on the second),
+keeps the first P healthy elements as the lane map, rejects the chip if fewer than P are healthy, and then runs
+tiles. Expected values come from `scripts/g19_array_model.py`, a separately written model of the same rules.
+
+- **Stuck-bit semantics:** with the identity map, the defective arrays' outputs equal the model's (0 mismatches).
+- **Decisions:** the accept/reject decision equals "defective elements <= S" on every chip (0 mismatches;
+  121, 122 and 140 of 150 chips accepted at the three sizes).
+- **Repair:** every accepted chip reproduces the exact sums on all test tiles (0 mismatches).
+- **Flip hook:** a single accumulator-bit flip at a chosen step gives the model's result (0 mismatches).
+- **The check can fail:** with the stuck-at-0 half of the self-test removed, the same run reports 27 wrong
+  decisions and 521 wrong results.
+- **Yield:** the accepted counts agree with the closed form (z = -1.20, -0.22, -0.46); see `results/g19_yield.md`.
+  Spares needed for 99% yield fall as a fraction as the array gets wider and rise as the per-element good
+  probability g drops (for g = 0.9: 1.50x elements at 8 lanes, 1.15x at 512). g is tier C, so these are
+  consequences of a model, not predictions for a chip.
+
+**Not shown.** One stuck bit per element: multi-bit, weak (intermittent) and multiplier-internal defects are not
+modelled, and a weak defect would pass this self-test (compare C7). The self-test is run by the testbench; no
+controller program does it yet. The crossbar that makes any element serve any lane is ideal here: its cost and
+its own defects are not modelled (compare G10 and G14), and the 2% to 125% overhead figures count elements only,
+not routing.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`

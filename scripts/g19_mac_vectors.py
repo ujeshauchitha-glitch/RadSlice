@@ -23,11 +23,10 @@ def emit(out, xs, wmat):
     out.append(" ".join(str(int(v)) for v in exp))
 
 
-def main():
-    P = int(sys.argv[1])
-    ntiles = int(sys.argv[2])
+def make_tiles(P, ntiles):
+    """The random tiles (a fifth at the int8 extremes) as a list of (xs, weight matrix)."""
     rng = np.random.default_rng(19)
-    out = []
+    tiles = []
     for t in range(ntiles):
         n = int(rng.integers(1, 80))
         xs = rng.integers(-128, 128, n)
@@ -35,6 +34,15 @@ def main():
         if t % 5 == 0:
             xs[:] = rng.choice([-128, 127], n)
             wm[:] = rng.choice([-128, 127], (n, P))
+        tiles.append((xs, wm))
+    return tiles
+
+
+def main():
+    P = int(sys.argv[1])
+    ntiles = int(sys.argv[2])
+    out = []
+    for xs, wm in make_tiles(P, ntiles):
         emit(out, xs, wm)
     net = np.load(os.path.join(ROOT, "results", "g19_network.npz"))
     w1, w2, xte = net["w1"].astype(np.int64), net["w2"].astype(np.int64), net["xte"]
