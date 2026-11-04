@@ -829,8 +829,8 @@ swept. An accuracy floor of fault-free minus one point (0.9585) is used for "sti
 
 **Weight upsets** (per stored bit per image, one draw per pass; the weight memory is shared by all copies):
 - The unprotected network is robust: accuracy stays within a point of fault-free up to 1e-3 per bit (about 19
-  flips per image over all 18,944 weight bits is too many to be harmless only at 1e-2 and above, where accuracy
-  falls to 0.86 and 0.66 at 3e-2), but silent wrong answers grow from 0.1% at 1e-4 to 1.8% at 1e-3.
+  flipped bits per image across the 18,944 weight bits), then falls to 0.952, 0.856 and 0.656 at 3e-3, 1e-2
+  and 3e-2. Silent wrong answers appear well before that: 0.1% at 1e-4 and 1.8% at 1e-3.
 - Duplicate-and-compare and triple voting on the accumulators do nothing for weight upsets (all copies share the
   corrupted weights): their silent-wrong curves equal the unprotected one.
 - The checksum lane detects every weight upset (no silent errors at any rate) and, **if a clean master copy of
