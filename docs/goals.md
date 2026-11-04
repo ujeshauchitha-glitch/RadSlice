@@ -20,7 +20,7 @@ to answer it. It decides what the project is for.
 | # | Milestone | Done when |
 |---|---|---|
 | 1 | G19 step 1: quantized network and integer reference | done: float 0.9704, integer 0.9685 held-out accuracy |
-| 2 | MAC array in Verilog, bit-exact against the reference | zero mismatches over random tiles and the whole test set |
+| 2 | MAC array in Verilog, bit-exact against the reference | done for int32 sums on random tiles and 20 test images (0 mismatches, four sizes); requantization and argmax not yet in hardware |
 | 3 | Stuck-bit defects, boot self-test, spare rows or columns, remap | repaired arrays match the reference; yield agrees with the closed form |
 | 4 | Upsets and protection schemes (checksum, parity, TMR), accuracy against fault rate | each scheme's accuracy floor and cost, measured |
 | 5 | RV64 controller drives the array on the DE2-115 | fits, runs the network, MACs per second measured at the achieved clock |

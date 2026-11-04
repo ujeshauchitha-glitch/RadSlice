@@ -745,6 +745,33 @@ E3 at base 2 and at base 21, and adds base 21 to the E4 sensitivity. Tables: `re
 - **Caveat:** the measured base belongs to this core, which does not overlap register access with the ALU. A core that did would
   have a smaller base and move the answer back toward larger K. The conclusion is conditional on this microarchitecture.
 
+## G19, step 2: the MAC array matches the integer reference
+
+`rtl/mac_pe.v` is one int8 x int8 into int32 multiply-accumulate element with a stuck-bit mask (applied to the
+stored accumulator, so the wrong bit feeds back) and a one-cycle flip hook. `rtl/mac_array.v` is P logical lanes
+served by P + S physical elements through a lane-to-element map; weights are routed to the mapped element and
+its accumulator is read back as the lane's result (an ideal any-to-any crossbar; its own cost and defects are
+not modelled). `bash scripts/run-mac-tests.sh` simulates it in Icarus against sums computed in exact integers
+by `scripts/g19_mac_vectors.py`, using random tiles (a fifth of them at the int8 extremes) and the real
+network's layer 1 and layer 2 on 20 held-out images.
+
+| Array (lanes + spares) | Tiles | Mismatches |
+|---|---|---|
+| 8 + 0 | 420 | 0 |
+| 8 + 4 | 420 | 0 |
+| 4 + 2 | 520 | 0 |
+| 10 + 6 | 400 | 0 |
+
+In every run with spares the lane-to-element map is rotated by a different offset per tile and every element no
+lane uses is stuck at all ones: nothing leaked from an unused element and no weight was mis-routed. The check
+can fail: with one used element given a stuck bit, every spare configuration reports mismatches (420 of 420,
+520 of 520, 400 of 400 tiles).
+
+**Not shown.** No defect has been repaired yet: that needs the boot self-test that finds which element is
+defective and picks the map (step 3). Only int32 sums are checked, not the requantization between layers or
+the argmax (those stay in software for now). No timing, area or fit figures exist for the array.
+Each tile was run with a fresh clear, so accumulator state carried across tiles is not tested.
+
 ## M0: closed-form yield model
 
 Source: `python -m radslice.yield_model` (run from `python/`), `p = 0.71`
