@@ -380,6 +380,53 @@ hardware, is corrected and the earlier cycle numbers are re-run); or the design 
 register file with parity and remap; (3) the in-order core, lockstep with the golden model; (4) spares and the
 boot self-test; (5) the wide issue of G17; (6) the board wrapper and fault-injection switches.
 
+## G19. Can the RadSlice techniques make a fault-tolerant inference engine, which is what the YC space request asks for?
+**Why this gap exists.** YC's Summer 2026 Request for Startups reportedly asks for inference chips for space,
+optimised for mass, thermal performance and radiation hardness (read from secondary coverage; the official text
+at ycombinator.com/rfs has not been read, so the wording is unverified). The core of G1 to G18 is a controller,
+not an inference engine: it retires about one instruction per 21 cycles, and inference is multiply-accumulate (MAC)
+throughput. The question is whether the same ideas (spare units with remap, a boot self-test, parity or voting on
+state, scrubbing) carry over to a MAC array, with the RV64 core as its controller.
+**Claims to test.**
+1. A small int8 MAC array (output-stationary, N x N processing elements) runs a quantized network exactly as an
+   independent software reference does (bit-identical outputs) when no fault is present.
+2. With stuck-bit defects in processing elements, a boot self-test plus spare rows or columns plus remap restores
+   exact outputs for the chips the closed-form yield model (G10 style, one stuck bit per element) says can be
+   repaired, and repaired arrays match the reference on the whole test set.
+3. With transient upsets in accumulators and weights, an algorithm-based check (a checksum row and column) plus
+   re-execution of the failed tile removes silent wrong answers at the rates swept, at a measured cost in cycles
+   and elements; the comparison is against parity-only, TMR on accumulators, and no protection.
+4. Accuracy of the quantized network, not bit errors, is the figure that matters to a user: the study reports
+   classification accuracy against fault rate for each scheme, and finds the rate at which each falls below a
+   stated accuracy floor. Some faults may be harmless to accuracy; if so, the schemes' costs are not worth paying
+   below that rate, and that is a result.
+5. The array fits the DE2-115 with the controller core, and its throughput in MACs per cycle and per second at
+   the achieved clock is measured by simulation and reported next to the core's instructions per second, so
+   the gain over the core alone is a measured ratio.
+**Answered by.** A Verilog MAC array with fault hooks (stuck bits, flips), checked against a Python reference on
+random tiles and on the network; the existing yield model for the repair probability; a fault-injection
+campaign over a quantized digit classifier (scikit-learn's bundled 8 x 8 digits, no download); Quartus for fit
+and timing.
+**Wrong if.**
+- the array and the reference differ on any output with no fault (then the array is wrong and nothing else is
+  reported);
+- repaired arrays still give wrong outputs on the test set (the self-test misses defects the model says it finds);
+- accuracy does not fall at any rate swept for any scheme (then the study measures nothing and the rates or the
+  network are too easy; the sweep is widened before any conclusion is drawn);
+- the checksum scheme costs more than TMR for the same accuracy (then it is reported as the worse design).
+**Not claimed.** Anything about MoS2: the paper's circuits have thousands of transistors and an inference chip
+needs millions, so this is a silicon FPGA study of techniques, not evidence that a 2D chip could do this. No novelty:
+spare processing elements and checksum-based fault tolerance in systolic arrays are established. No TOPS or
+power figure is quoted unless it is produced by a run in this repository (Quartus power numbers are estimates).
+No claim that this answers the YC request: it tests whether one part of such a design works in simulation.
+**Assumptions (tier C).** Faults independent per processing element and per bit; fault-free checksum, vote and
+remap logic; one stuck bit per defective element; the network is small (tens of thousands of weights, int8);
+upset rates are swept and never quoted as measurements.
+**Order.** (1) the reference and a quantized network trained on the digits set, accuracy recorded fault-free;
+(2) the MAC array in Verilog and its lockstep check against the reference; (3) stuck-bit defects, self-test,
+spares and remap; (4) transient faults and the protection schemes; (5) controller integration on the RV64
+core and the DE2-115 fit.
+
 ## G7. A fair baseline
 **Claim to test.** Comparing against a fault-free silicon register file with
 MoS2 logic is needed to avoid overstating the benefit.
