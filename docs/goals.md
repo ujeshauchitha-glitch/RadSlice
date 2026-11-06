@@ -1,5 +1,12 @@
 # Goals
 
+> **Direction update 2026-11-06.** Two reviews by role-playing council debates (`docs/council-verdict.md`,
+> `docs/council-2-direction.md`) concluded that the "radiation-tolerant inference engine for spacecraft" framing below cannot be
+> defended with the evidence we have, so it is demoted to one sentence of motivation. The project now runs two tracks: **A**, a
+> narrow, preregistered, hardware-validated weight-protection study (G20 and the board work), and **B**, an offer to 2D-materials
+> groups to rerun the RadSlice study with their measured data (`docs/collaboration-2d.md`). The rest of this file is kept as the
+> earlier plan; where it conflicts with the note, the note wins. The YC request was only read second-hand and must not be quoted.
+
 ## The goal
 A radiation-tolerant inference engine for spacecraft, demonstrated on an FPGA and in simulation: an int8 MAC
 array with a RISC-V controller that keeps giving correct classifications under manufacturing defects and

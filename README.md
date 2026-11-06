@@ -1,21 +1,19 @@
 # RadSlice
 
-A simulation-first project working towards a **radiation-tolerant inference engine for spacecraft**: a small
-RV64 controller plus an int8 multiply-accumulate (MAC) array that survives manufacturing defects and upsets
-through spare elements, remap, a boot self-test and checksum protection. The target problem is the one in
-Y Combinator's Summer 2026 Request for Startups (inference chips for space, tuned for mass, thermal
-performance and radiation hardness; read from secondary coverage, the official text is unchecked).
-See `docs/goals.md` for the goal, the milestones and what would make us stop.
+A simulation-first, open study of how much redundancy and protection small fault-tolerant hardware needs, run on two tracks
+(see `docs/goals.md`):
 
-It grew from a study of a fault-tolerant, bit-sliced RV64I core for 2D-material (MoS2) chips (G1 to G18, all
-kept): that work supplies the fault model, the spare-and-remap ideas, the Verilog controller core and the
-FPGA flow.
+- **Track A (near term):** how well weight-memory protections (ECC, scrubbing, checksum with reload) work for a small int8
+  classifier when the weight memory suffers upsets and the checker itself can fail, and whether free software fault-injection
+  tools predict what a real FPGA does. The preregistered study (G20) is done in simulation; the board work is next
+  (`docs/council-2-direction.md`).
+- **Track B (long shot):** a bit-sliced RV64 core built from 2D-semiconductor (MoS2) circuits: how many spare slices and what
+  protection it would need, once measured defect and upset data exist (G1 to G18, `docs/collaboration-2d.md`).
 
-**Nothing here is a measurement.** Every device or fault parameter is in
-`config/params.toml` with a tier tag (A published, B calibrated, C hypothetical)
-and defaults to C. No novelty is claimed: spare slices, parity, TMR and fault-tolerant systolic arrays all
-exist. The question is how they behave together on a small inference engine, measured in simulation and on
-an FPGA, with the failures kept.
+**Nothing here is a measurement.** Every device or fault parameter is in `config/params.toml` with a tier tag (A published,
+B calibrated, C hypothetical) and defaults to C. No novelty is claimed: spare slices, parity, ECC, TMR and fault-tolerant arrays all
+exist. No claim is made that any 2D circuit is radiation resistant. Failed predictions and rejected ideas are kept in
+`docs/results.md`.
 
 - `docs/gaps.md`: what each feature answers, and what would prove it wrong.
 - `docs/results.md`: what was shown, what was not, and what was rejected. Start with its
