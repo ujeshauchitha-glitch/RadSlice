@@ -1,5 +1,9 @@
 # Pitch deck: slide-by-slide, with what to say
 
+> **Superseded on 2026-11-06.** The two council reviews (`council-verdict.md`, `council-2-direction.md`) rejected the
+> spacecraft framing this deck uses (slides 1 to 3). Kept as a record; the numbers on slides 5 to 8 are still those in
+> `results/`, but do not present the deck as written. The current one-sentence question is at the top of `README.md`.
+
 Eleven slides plus a Q&A page. Every number below comes from a run in this repository (file named under each slide).
 Anything not measured is marked, and the last section lists what never to claim. Total talk: about 10 minutes.
 

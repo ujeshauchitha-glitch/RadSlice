@@ -1,6 +1,6 @@
 # Council 2: a better direction, and what makes it fundable
 
-Same four Claude roles as `council-verdict.md` (Advocate, Skeptic, Investor, Pragmatist), two more rounds, this time with web
+Same four role-played positions as `council-verdict.md` (Advocate, Skeptic, Investor, Pragmatist), two more rounds, this time with web
 search allowed. **Limit:** the four share one model and one briefing, and the web results were mostly snippets, not full papers.
 Treat the prior-art points as leads to check, not as a literature review.
 

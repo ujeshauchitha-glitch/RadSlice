@@ -1,6 +1,6 @@
 # Council verdict: should RadSlice be pitched as a radiation-tolerant inference engine for spacecraft?
 
-Method: four Claude instances with fixed roles (Advocate, Skeptic, Investor, Pragmatist) each gave an independent position, then
+Method: four role-played positions, produced with a language-model assistant and fixed roles (Advocate, Skeptic, Investor, Pragmatist) each gave an independent position, then
 each saw the others' arguments and answered with concessions, holds, a 12-week plan, kill criteria and a confidence. Two rounds.
 **Limit of the method:** the four share one model and one briefing, so their agreement is not independent evidence. Facts they
 recalled from memory (listed at the end) are unchecked. Treat this as a structured stress test, not a verdict from the field.
