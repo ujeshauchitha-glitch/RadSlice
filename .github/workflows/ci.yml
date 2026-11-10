@@ -11,7 +11,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: pip install -r requirements.txt
       - run: bash scripts/run-python-tests.sh
+
+  # The headline results (G19 step 4 and G20) regenerated from scratch; the job fails if a committed
+  # table changes. The SVG and PNG differ by timestamp only and are excluded from the comparison.
+  reproduce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: make reproduce
+      - run: git diff --exit-code -- results/g19_baseline.md results/g19_campaign.csv results/g19_campaign.md results/g20_weight_protection.csv results/g20_weight_protection.md
 
   golden-model-builds:
     runs-on: ubuntu-latest
