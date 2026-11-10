@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this repository, cite it as below. Every number in it is a simulation under stated assumptions, not a measurement."
+title: "RadSlice: a simulation study of spare capacity and fault protection for small fault-tolerant hardware"
+type: software
+authors:
+  - family-names: Sivaramakrishnan
+    given-names: Ujesha
+repository-code: "https://github.com/ujeshauchitha-glitch/RadSlice"
+license: MIT
+version: "0.1.0"
+date-released: "2026-11-10"
+keywords:
+  - fault injection
+  - fault tolerance
+  - weight-memory protection
+  - ECC
+  - yield model
+  - spare slices
+  - RISC-V
+  - FPGA
+abstract: >-
+  Preregistered simulation studies of how well weight-memory protections (ECC,
+  scrubbing, checksum with reload) and array-level protections (duplication,
+  triple voting, checksum lane) keep a small int8 classifier accurate under
+  bit upsets, with a Verilog MAC array checked bit for bit against an integer
+  reference; and an earlier study of spare-slice redundancy, boot self-test and
+  remap for a slice-serial RV64I core under a 2D-semiconductor-style defect
+  model, calibrated only to published register yields. All upset and defect
+  rates are swept, tiered placeholders. No novelty is claimed and nothing is a
+  measurement of a chip.
