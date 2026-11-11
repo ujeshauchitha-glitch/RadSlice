@@ -129,7 +129,7 @@ def part4():
     say("Everything else in this tour is a hypothetical parameter, written down and labelled as such in")
     say("docs/assumptions.md. Nothing here proves a real chip would behave this way.")
     say("\nFurther reading in the repository:")
-    say("  docs/results.md   conclusions C1 to C17, each with its evidence and what would overturn it")
+    say("  docs/results/summary.md   conclusions C1 to C17, each with its evidence and what would overturn it")
     say("  docs/gaps.md      the claims, written before the code, each with how it could be proved wrong")
     say("  results/          the tables and figures behind every claim")
 

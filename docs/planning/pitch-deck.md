@@ -84,7 +84,7 @@ not run on the board yet."
 **Say:** "Before measuring anything about faults, I proved the fault-free hardware is exact. A test that cannot fail proves
 nothing, so each check has a control that must fail, and does."
 
-(Source: `docs/results.md`, "G19 step 2". 420 + 420 + 520 + 400 = 1,760 tiles.)
+(Source: `docs/results/g19-mac-array.md`, "G19 step 2". 420 + 420 + 520 + 400 = 1,760 tiles.)
 
 ---
 

@@ -5,7 +5,7 @@ wrong are written here. Nothing in this repository is a measurement. All device
 and fault parameters are tier C (hypothetical) in `config/params.toml` until a
 source is checked.
 
-**Status.** Where each gap ended up after M5 is tabulated in `docs/results.md` (section "M5"),
+**Status.** Where each gap ended up after M5 is tabulated in `docs/results/summary.md` (section "M5"),
 and every assumption is listed in `docs/assumptions.md`.
 
 ## G1. Register-file yield collapses with width in 2D-material logic
@@ -175,7 +175,7 @@ each block of slices (shape alpha; small alpha is strong clustering; alpha tendi
 recovers independence); within a block, slices fail independently given the multiplier. No spatial
 gradient across the wafer, and no clustering of the transient upsets of M4. The alpha values beyond
 what the wafer map allows are hypothetical stress tests, not predictions.
-**Result (see docs/results.md, G9).** Claims 1 to 4 confirmed; claim 5 not supported (TMR's yield
+**Result (see docs/results/g09-clustered-defects.md).** Claims 1 to 4 confirmed; claim 5 not supported (TMR's yield
 penalty grows when the copies share a die). The spare requirement depends on the *scale* of the
 clustering: at the strength the wafer map allows between matrices, die-level variation raises the
 spares for 99% yield from 134 to 248, block-level clustering only to 147, and one wafer cannot test
