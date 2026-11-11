@@ -71,6 +71,8 @@ The relevant areas at NUS are split between the School of Computing (architectur
 Department of Electrical and Computer Engineering (devices, 2D materials). The pages below were read directly; the
 list is not complete and was not filtered by anyone at NUS.
 
+**Re-check on 2026-11-11 (a second pass, fetching each page again).** Confirmed by that fetch: the fellowship page (30 November 2026 deadline, recommendation letters requested by the academies from teachers, selection letters around March-April 2027); Carlson's page and join-us page (Sniper, accelerators, the two open areas, SINGA); Mitra's page (Dean, June 2025 call, Lin-Analyzer); the stale Kumar and Wong pages. **Not re-confirmed, treat as unverified until read in a browser:** the Alioto page (https://www.green-ic.org/ refused the automated fetch with HTTP 406), and the Ang and Thean staff pages (the fetch returned no readable text, so the quoted titles, "Beyond CMOS" phrase and news item could not be checked). No professor's email address or deadline other than the fellowship's appears in this file, and none should be added without reading it from the page.
+
 **Reliable or efficient ML hardware, architecture, embedded systems**
 
 - **Trevor E. Carlson**, Associate Professor, Department of Computer Science, School of Computing, Computer
